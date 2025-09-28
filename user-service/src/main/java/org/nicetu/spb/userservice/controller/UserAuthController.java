@@ -12,7 +12,6 @@ import org.nicetu.spb.userservice.model.dto.response.TokenValidationResponse;
 import org.nicetu.spb.userservice.security.jwt.JwtProvider;
 import org.nicetu.spb.userservice.security.validate.AuthorityTokenUtil;
 import org.nicetu.spb.userservice.security.validate.TokenValidate;
-import org.nicetu.spb.userservice.service.EmailService;
 import org.nicetu.spb.userservice.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -30,8 +29,6 @@ public class UserAuthController {
     private final UserService userService;
     private final JwtProvider jwtProvider;
 
-    @Autowired
-    private EmailService emailService;
 
     @Autowired
     public UserAuthController(UserService userService, JwtProvider jwtProvider) {

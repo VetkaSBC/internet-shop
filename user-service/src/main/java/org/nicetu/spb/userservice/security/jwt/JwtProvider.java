@@ -60,7 +60,7 @@ public class JwtProvider {
                 .subject(userPrinciple.getUsername())
                 .issuedAt(new Date())
                 .expiration(new Date(new Date().getTime() + jwtRefreshExpiration * 1000L))
-                .signWith(key, Jwts.SIG.HS512)
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
 

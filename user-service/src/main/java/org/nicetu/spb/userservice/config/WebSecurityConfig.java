@@ -63,7 +63,17 @@ public class WebSecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/signup").permitAll()
+                        .requestMatchers(
+                                "/api/auth/signup",
+                                "/api/auth/**",
+                                "/api/manager/token",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/configuration/**"
+                        ).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/manager/token").permitAll()
                         .requestMatchers("/api/manager/change-password").authenticated()
