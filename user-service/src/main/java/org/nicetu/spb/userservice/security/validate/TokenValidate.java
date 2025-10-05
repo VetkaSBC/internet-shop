@@ -2,6 +2,7 @@ package org.nicetu.spb.userservice.security.validate;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,8 @@ public class TokenValidate {
 
     @Value("${jwt.secret}")
     private String SECRET_KEY;
+
+
 
     public boolean validateToken(String token) {
         if (SECRET_KEY == null || SECRET_KEY.isEmpty()) {

@@ -28,13 +28,20 @@ import java.util.List;
 public class UserAuthController {
     private final UserService userService;
     private final JwtProvider jwtProvider;
-
+    private final TokenValidate tokenValidate;
+    private final AuthorityTokenUtil authorityTokenUtil;
 
     @Autowired
-    public UserAuthController(UserService userService, JwtProvider jwtProvider) {
+    public UserAuthController(UserService userService,
+                              JwtProvider jwtProvider,
+                              TokenValidate tokenValidate,
+                              AuthorityTokenUtil authorityTokenUtil) {
         this.userService = userService;
         this.jwtProvider = jwtProvider;
+        this.tokenValidate = tokenValidate;
+        this.authorityTokenUtil = authorityTokenUtil;
     }
+
 
     @PostMapping({"/signup", "/register"})
     public Mono<ResponseEntity<ResponseMessage>> register(@Valid @RequestBody SignUp signUp) {
@@ -84,13 +91,17 @@ public class UserAuthController {
 //    }
 
     @GetMapping({"/validateToken", "/validate-token"})
-    public Boolean validateToken(@RequestHeader(name = "Authorization") String authorizationToken) {
-        TokenValidate validate = new TokenValidate();
-        if (validate.validateToken(authorizationToken)) {
-            return ResponseEntity.ok(new TokenValidationResponse("Valid token")).hasBody();
-        } else {
+    public ResponseEntity<TokenValidationResponse> validateToken(@RequestHeader(name = "Authorization") String authorizationToken) {
+        try {
+            if (tokenValidate.validateToken(authorizationToken)) {
+                return ResponseEntity.ok(new TokenValidationResponse("Valid token"));
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new TokenValidationResponse("Invalid token"));
+            }
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new TokenValidationResponse("Invalid token")).hasBody();
+                    .body(new TokenValidationResponse(e.getMessage()));
         }
     }
 
@@ -106,5 +117,4 @@ public class UserAuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new TokenValidationResponse("Invalid token")).hasBody();
         }
     }
-
 }
