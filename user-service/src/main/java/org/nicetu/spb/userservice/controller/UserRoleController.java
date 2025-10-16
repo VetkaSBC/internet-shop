@@ -45,7 +45,7 @@ public class UserRoleController {
     public ResponseEntity<?> revokeRoles(@PathVariable Long id, @RequestBody String roleNames) {
         boolean success = roleService.revokeRole(id, roleNames);
         if (success) {
-            return new ResponseEntity<>("Roles have been assigned to users with IDs " + id,
+            return new ResponseEntity<>("Roles have been revoke to users with IDs " + id,
                     headerGenerator.getHeadersForSuccessGetMethod(),
                     HttpStatus.OK);
         }

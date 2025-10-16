@@ -29,7 +29,6 @@ public class WebClientConfig {
     public WebClient mediaServiceWebClient(WebClient.Builder webClientBuilder) {
         return webClientBuilder
                 .baseUrl(mediaServiceUrl)
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.MULTIPART_FORM_DATA_VALUE)
                 .build();
     }
 }

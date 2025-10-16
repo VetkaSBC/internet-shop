@@ -19,7 +19,7 @@ public class ProductDto implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private Integer productId;
+    private Long productId;
     private String productTitle;
     private String imageUrl;
     private String sku;

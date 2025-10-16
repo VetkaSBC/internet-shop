@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 import org.nicetu.spb.userservice.model.dto.request.Login;
+import org.nicetu.spb.userservice.model.dto.request.ResetPasswordRequest;
 import org.nicetu.spb.userservice.model.dto.request.SignUp;
 import org.nicetu.spb.userservice.model.dto.response.InformationMessage;
 import org.nicetu.spb.userservice.model.dto.response.JwtResponseMessage;
@@ -42,7 +43,6 @@ public class UserAuthController {
         this.authorityTokenUtil = authorityTokenUtil;
     }
 
-
     @PostMapping({"/signup", "/register"})
     public Mono<ResponseEntity<ResponseMessage>> register(@Valid @RequestBody SignUp signUp) {
         return userService.register(signUp)
@@ -80,15 +80,32 @@ public class UserAuthController {
                 });
     }
 
-//    @PostMapping("/reset-password")
-//    public Mono<ResponseEntity<String>> resetPassword(@RequestParam("token") String token, @RequestBody ResetPasswordRequest resetPasswordRequest) {
-//
-//    }
-//
-//
-//    @PostMapping({"/refresh", "/refresh-token"})
-//    public Mono<ResponseEntity<JwtResponseMessage>> refresh(@RequestHeader("Refresh-Token") String refreshToken) {
-//    }
+    @PostMapping("/reset-password")
+    public Mono<ResponseEntity<ResponseMessage>> resetPassword(@RequestParam("token") String token,
+                                                               @Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
+        return userService.resetPassword(token, resetPasswordRequest)
+                .map(message -> ResponseEntity.ok(new ResponseMessage(message)))
+                .onErrorResume(error -> {
+                    log.error("Password reset failed: {}", error.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body(new ResponseMessage(error.getMessage())));
+                });
+    }
+
+    @PostMapping({"/refresh", "/refresh-token"})
+    public Mono<ResponseEntity<JwtResponseMessage>> refresh(@RequestHeader("Refresh-Token") String refreshToken) {
+        return userService.refreshToken(refreshToken)
+                .map(ResponseEntity::ok)
+                .onErrorResume(error -> {
+                    log.error("Token refresh failed: {}", error.getMessage());
+                    JwtResponseMessage errorResponse = new JwtResponseMessage(
+                            null,
+                            null,
+                            new InformationMessage()
+                    );
+                    return Mono.just(new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED));
+                });
+    }
 
     @GetMapping({"/validateToken", "/validate-token"})
     public ResponseEntity<TokenValidationResponse> validateToken(@RequestHeader(name = "Authorization") String authorizationToken) {
@@ -106,15 +123,14 @@ public class UserAuthController {
     }
 
     @GetMapping({"/hasAuthority", "/authorization"})
-    public Boolean getAuthority(@RequestHeader(name = "Authorization") String authorizationToken,
-                                String requiredRole) {
-        AuthorityTokenUtil authorityTokenUtil = new AuthorityTokenUtil();
+    public ResponseEntity<?> getAuthority(@RequestHeader(name = "Authorization") String authorizationToken,
+                                          String requiredRole) {
         List<String> authorities = authorityTokenUtil.checkPermission(authorizationToken);
 
         if (authorities.contains(requiredRole)) {
-            return ResponseEntity.ok(new TokenValidationResponse("Role access api")).hasBody();
+            return ResponseEntity.ok(new TokenValidationResponse("Role access api"));
         } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new TokenValidationResponse("Invalid token")).hasBody();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new TokenValidationResponse("Invalid token"));
         }
     }
 }

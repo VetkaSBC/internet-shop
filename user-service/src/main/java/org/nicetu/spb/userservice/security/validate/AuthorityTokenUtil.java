@@ -18,14 +18,25 @@ public class AuthorityTokenUtil {
 
     public List<String> checkPermission(String token) {
         try {
+            System.out.println("Received token: " + token);
+
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+                System.out.println("Extracted token: " + token);
+            }
+
             Claims jws = Jwts.parser()
                     .verifyWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)))
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
 
-            return jws.get("authorities", List.class);
+            List<String> authorities = jws.get("authorities", List.class);
+            System.out.println("Authorities found: " + authorities);
+            return authorities;
+
         } catch (Exception e) {
+            System.out.println("Error parsing token: " + e.getMessage());
             return new ArrayList<>();
         }
     }

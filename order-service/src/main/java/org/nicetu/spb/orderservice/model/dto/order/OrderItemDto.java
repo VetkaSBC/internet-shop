@@ -1,13 +1,12 @@
-package org.nicetu.spb.productservice.model.dto;
+package org.nicetu.spb.orderservice.model.dto.order;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.nicetu.spb.productservice.model.entity.Product;
+import org.nicetu.spb.orderservice.model.dto.product.ProductDto;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -16,13 +15,21 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Data
 @Builder
-public class ProductPhotoDto implements Serializable {
+public class OrderItemDto implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private Long photoId;
+    private Integer orderItemId;
+    private Long productId;
+    private Integer quantity;
+    private Double price;
+    private Double totalPrice;
+
     @JsonProperty("product")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private ProductDto productDto;
-    private String photoLink;
+
+    @JsonProperty("order")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private OrderDto orderDto;
 }

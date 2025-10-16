@@ -35,15 +35,19 @@ public class JwtTokenFilter extends OncePerRequestFilter implements Filter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        String requestURI = request.getRequestURI();
+        if (isSwaggerUrl(requestURI) || isPublicUrl(requestURI)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String token = extractToken(request);
 
         try {
             if (token != null && jwtProvider.validateToken(token)) {
                 Authentication authentication = jwtProvider.getAuthentication(token);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-
                 request.setAttribute("JWT_TOKEN", token);
-
                 filterChain.doFilter(request, response);
             } else {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
@@ -56,10 +60,23 @@ public class JwtTokenFilter extends OncePerRequestFilter implements Filter {
         }
     }
 
+    private boolean isSwaggerUrl(String uri) {
+        return uri.contains("/swagger-ui") ||
+                uri.contains("/v3/api-docs") ||
+                uri.contains("/swagger-resources") ||
+                uri.contains("/configuration/ui") ||
+                uri.contains("/configuration/security") ||
+                uri.contains("/webjars/");
+    }
+
+    private boolean isPublicUrl(String uri) {
+        return uri.equals("/") || uri.equals("/error");
+    }
+
     private String extractToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer")) {
-            return authHeader.replace("Bearer", "");
+        while (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
         }
         return null;
     }

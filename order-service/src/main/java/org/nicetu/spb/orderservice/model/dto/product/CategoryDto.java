@@ -22,6 +22,9 @@ public class CategoryDto implements Serializable {
 
     private Integer categoryId;
     private String categoryTitle;
+
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String imageUrl;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

@@ -13,7 +13,7 @@ public interface OrderService {
 
     Mono<OrderDto> findById(Integer orderId);
 
-    Mono<OrderDto> save(final OrderDto orderDto);
+    Mono<OrderDto> save(final OrderDto orderDto, final String jwtToken);
 
     Mono<OrderDto> update(final OrderDto orderDto);
 

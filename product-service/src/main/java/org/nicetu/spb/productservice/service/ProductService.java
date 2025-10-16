@@ -17,4 +17,10 @@ public interface ProductService {
     ProductDto update(final Long productId, final ProductDto productDto);
 
     void deleteById(final Long productId);
+
+    ProductDto releaseProduct(Long productId, Integer quantity);
+
+    boolean isProductAvailable(Long productId, Integer quantity);
+
+    ProductDto reserveProduct(Long productId, Integer quantity);
 }

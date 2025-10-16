@@ -17,7 +17,7 @@ public interface ProductPhotoMapping {
                                 .title(productPhoto.getProduct().getTitle())
                                 .description(productPhoto.getProduct().getDescription())
                                 .quantity(productPhoto.getProduct().getQuantity())
-                                .price(productPhoto.getProduct().getPrice())
+                                .priceUnit(productPhoto.getProduct().getPriceUnit())
                                 .discount(productPhoto.getProduct().getDiscount())
                                 .categoryDto(
                                         CategoryDto.builder()
@@ -38,7 +38,7 @@ public interface ProductPhotoMapping {
                                 .title(productPhotoDto.getProductDto().getTitle())
                                 .description(productPhotoDto.getProductDto().getDescription())
                                 .quantity(productPhotoDto.getProductDto().getQuantity())
-                                .price(productPhotoDto.getProductDto().getPrice())
+                                .priceUnit(productPhotoDto.getProductDto().getPriceUnit())
                                 .discount(productPhotoDto.getProductDto().getDiscount())
                                 .category(
                                         Category.builder()

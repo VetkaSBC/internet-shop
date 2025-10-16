@@ -1,6 +1,7 @@
 package org.nicetu.spb.orderservice.controller;
 
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -64,11 +65,22 @@ public class OrderController {
     @PreAuthorize("hasAuthority('USER')")
     public Mono<ResponseEntity<OrderDto>> save(@RequestBody
                                                @NotNull(message = "Input must not be NULL")
-                                               @Valid final OrderDto orderDto) {
-        log.info("*** OrderDto, resource; save order *");
-        return orderService.save(orderDto)
+                                               @Valid final OrderDto orderDto,
+                                               HttpServletRequest request) {
+        log.info("*** OrderDto, resource; save order and send confirmation email *");
+
+        String token = extractTokenFromRequest(request);
+        return orderService.save(orderDto, token)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+    }
+
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
     }
 
     @PutMapping

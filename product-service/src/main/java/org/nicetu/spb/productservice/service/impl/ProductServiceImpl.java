@@ -51,10 +51,14 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductDto save(ProductDto productDto) {
+    public ProductDto save(final ProductDto productDto) {
         log.info("ProductDto, service; save product");
         try {
-            return ProductMapping.mapToDto(productRepository.save(ProductMapping.mapToEntity(productDto)));
+            Product product = ProductMapping.mapToEntity(productDto);
+            product.calculateQuantityStatus();
+
+            Product savedProduct = productRepository.save(product);
+            return ProductMapping.mapToDto(savedProduct);
         } catch (DataIntegrityViolationException e) {
             log.error("Error saving product: Data integrity violation", e);
             throw new ProductNotFoundException("Error saving product: Data integrity violation", e);
@@ -65,20 +69,24 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductDto update(ProductDto productDto) {
+    public ProductDto update(final ProductDto productDto) {
         log.info("ProductDto, service; update product");
 
         Product existingProduct = productRepository.findById(productDto.getProductId())
                 .orElseThrow(() -> new ProductNotFoundException("Product not found with id: " + productDto.getProductId()));
 
-        BeanUtils.copyProperties(productDto, existingProduct, "productId", "categoryDto");
+        Long existingId = existingProduct.getProductId();
+
+        BeanUtils.copyProperties(productDto, existingProduct, "productId", "category", "productPhotos");
+
+        existingProduct.setProductId(existingId);
 
         if (productDto.getCategoryDto() != null) {
             existingProduct.setCategory(CategoryMapping.mapToEntity(productDto.getCategoryDto()));
         }
+        existingProduct.calculateQuantityStatus();
 
         Product updatedProduct = productRepository.save(existingProduct);
-
         return ProductMapping.mapToDto(updatedProduct);
     }
 
@@ -106,5 +114,28 @@ public class ProductServiceImpl implements ProductService {
         this.productRepository.delete(ProductMapping.mapToEntity(this.findById(productId)));
     }
 
+    public boolean isProductAvailable(Long productId, Integer quantity) {
+        ProductDto productDto = this.findById(productId);
+        return productDto.getQuantity() >= quantity;
+    }
+
+    public ProductDto reserveProduct(Long productId, Integer quantity) {
+        ProductDto productDto = this.findById(productId);
+
+        if (productDto.getQuantity() < quantity) {
+            throw new ProductNotFoundException(
+                    String.format("Not enough stock for product %d. Available: %d, Requested: %d",
+                            productId, productDto.getQuantity(), quantity));
+        }
+
+        productDto.setQuantity(productDto.getQuantity() - quantity);
+        return this.update(productDto);
+    }
+
+    public ProductDto releaseProduct(Long productId, Integer quantity) {
+        ProductDto productDto = this.findById(productId);
+        productDto.setQuantity(productDto.getQuantity() + quantity);
+        return this.update(productDto);
+    }
 
 }

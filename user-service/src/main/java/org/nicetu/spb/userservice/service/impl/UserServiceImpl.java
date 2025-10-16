@@ -248,10 +248,7 @@ public class UserServiceImpl implements UserService {
         return "Hey " + username + "!\n\n" +
                 "This is a confirmation that your password has been successfully changed.\n" +
                 " If you did not initiate this change, please contact our support team immediately.\n" +
-                "If you have any questions or concerns, feel free to reach out to us.\n\n" +
-                "Best regards:\n\n" +
-                "Contact: hoangtien2k3qx1@gmail.com\n" +
-                "Fanpage: https://hoangtien2k3qx1.github.io/";
+                "If you have any questions or concerns, feel free to reach out to us.\n\n";
     }
 
     private UserDetails getCurrentUserDetails() {
@@ -286,18 +283,6 @@ public class UserServiceImpl implements UserService {
         return "User with id " + id + " deleted successfully";
     }
 
-    public Mono<String> refreshToken(String refreshToken) {
-        return webClientBuilder.build()
-                .post()
-                .uri(refreshTokenUrl)
-                .header("Refresh-Token", refreshToken)
-                .retrieve()
-                .onStatus(status -> status.is4xxClientError(),
-                        clientResponse -> Mono.error(new IllegalArgumentException("Refresh token không hợp lệ")))
-                .bodyToMono(JwtResponseMessage.class)
-                .map(JwtResponseMessage::getAccessToken);
-    }
-
     @Override
     public Optional<User> findById(Long userId) {
         return Optional.of(userRepository.findById(userId))
@@ -328,5 +313,65 @@ public class UserServiceImpl implements UserService {
         return userRepository.existsByPhoneNumber(phone);
     }
 
+    @Override
+    public Mono<String> resetPassword(String token, ResetPasswordRequest request) {
+        return Mono.fromCallable(() -> {
+            if (!jwtProvider.validateToken(token)) {
+                throw new IllegalArgumentException("Invalid or expired reset token");
+            }
+
+            String email = jwtProvider.getEmailFromToken(token);
+            User user = findByEmail(email)
+                    .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                throw new IllegalArgumentException("New password and confirmation do not match");
+            }
+
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+
+            EmailDetails emailDetails = emailDetailsConfig(email);
+            eventProducer.send(KafkaConstant.PROFILE_ONBOARDING_TOPIC, gson.toJson(emailDetails))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .subscribe();
+
+            return "Password has been reset successfully";
+        });
+    }
+
+    @Override
+    public Mono<JwtResponseMessage> refreshToken(String refreshToken) {
+        return Mono.fromCallable(() -> {
+            if (!jwtProvider.validateToken(refreshToken)) {
+                throw new IllegalArgumentException("Invalid or expired refresh token");
+            }
+
+            String email = jwtProvider.getEmailFromToken(refreshToken);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+            Authentication authentication = new UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.getAuthorities()
+            );
+
+            String newAccessToken = jwtProvider.createToken(authentication);
+            String newRefreshToken = jwtProvider.creteRefreshToken(authentication);
+
+            UserPrinciple userPrinciple = (UserPrinciple) userDetails;
+
+            return JwtResponseMessage.builder()
+                    .accessToken(newAccessToken)
+                    .refreshToken(newRefreshToken)
+                    .information(InformationMessage.builder()
+                            .id(userPrinciple.id())
+                            .firstName(userPrinciple.firstname())
+                            .lastName(userPrinciple.lastname())
+                            .email(userPrinciple.email())
+                            .phoneNumber(userPrinciple.phoneNumber())
+                            .roles(userPrinciple.roles())
+                            .build())
+                    .build();
+        });
+    }
 
 }

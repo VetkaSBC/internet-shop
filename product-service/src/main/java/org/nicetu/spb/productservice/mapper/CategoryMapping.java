@@ -23,17 +23,19 @@ public interface CategoryMapping {
     }
 
     static Category mapToEntity(CategoryDto categoryDto) {
-        var parentCategoryDto = Optional.ofNullable(categoryDto.getParentCategoryDto())
-                .orElseGet(CategoryDto::new);
-
-        return Category.builder()
+        Category category = Category.builder()
                 .categoryId(categoryDto.getCategoryId())
                 .categoryTitle(categoryDto.getCategoryTitle())
-                .parentCategory(
-                        Category.builder()
-                                .categoryId(parentCategoryDto.getCategoryId())
-                                .categoryTitle(parentCategoryDto.getCategoryTitle())
-                                .build())
                 .build();
+
+        if (categoryDto.getParentCategoryDto() != null &&
+                categoryDto.getParentCategoryDto().getCategoryId() != null) {
+            Category parentCategory = Category.builder()
+                    .categoryId(categoryDto.getParentCategoryDto().getCategoryId())
+                    .build();
+            category.setParentCategory(parentCategory);
+        }
+
+        return category;
     }
 }

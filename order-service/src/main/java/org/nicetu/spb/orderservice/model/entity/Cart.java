@@ -12,7 +12,7 @@ import java.util.Set;
 @Table(name = "carts")
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true, exclude = {"orders"})
+@EqualsAndHashCode( exclude = {"orders"})
 @Data
 @Builder
 public class Cart {

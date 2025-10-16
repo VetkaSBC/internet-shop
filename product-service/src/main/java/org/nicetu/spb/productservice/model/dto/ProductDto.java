@@ -21,15 +21,14 @@ public class ProductDto implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @NotNull(message = "Product ID cannot be null")
     private Long productId;
     private String title;
     private String description;
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private List<ProductPhotoDto> routePhotos;
+    private List<ProductPhotoDto> productPhotos;
     private Integer quantity;
     private String quantityStatus;
-    private Long price;
+    private Double priceUnit;
     private Long discount;
 
     @JsonProperty("category")

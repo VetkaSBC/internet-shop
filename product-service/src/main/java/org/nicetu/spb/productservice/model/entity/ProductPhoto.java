@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 @Entity
-@Table(name = "route_link")
+@Table(name = "product_photo")
 public class ProductPhoto implements Serializable {
 
     @Serial
@@ -42,6 +42,6 @@ public class ProductPhoto implements Serializable {
     private LocalDateTime uploadedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
+    @JoinColumn(name = "product_id")
     private Product product;
 }

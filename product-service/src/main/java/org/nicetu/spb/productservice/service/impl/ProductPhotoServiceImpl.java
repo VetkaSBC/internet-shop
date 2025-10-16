@@ -15,6 +15,7 @@ import org.nicetu.spb.productservice.repository.ProductRepository;
 import org.nicetu.spb.productservice.service.ProductPhotoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -141,7 +142,7 @@ public class ProductPhotoServiceImpl implements ProductPhotoService {
 
         try {
             byte[] content = mediaServiceClient.downloadPhoto(photo.getPhotoLink());
-            log.info("Successfully downloaded photo content for ID: {}", photoId);
+            log.info("Successfully downloaded photo content for ID: {}, size: {} bytes", photoId, content.length);
             return content;
 
         } catch (Exception e) {
@@ -180,4 +181,16 @@ public class ProductPhotoServiceImpl implements ProductPhotoService {
             throw new RuntimeException("Failed to upload photo: " + e.getMessage(), e);
         }
     }
+
+    @Override
+    public String getPhotoContentType(Long photoId) {
+        log.info("Getting photo content type for ID: {}", photoId);
+
+        ProductPhoto photo = productPhotoRepository.findById(photoId)
+                .orElseThrow(() -> new ProductPhotoNotFoundException("Photo not found with id: " + photoId));
+
+        return photo.getContentType() != null ? photo.getContentType() : MediaType.IMAGE_JPEG_VALUE;
+    }
+
+
 }

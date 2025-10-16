@@ -19,7 +19,6 @@ import java.util.List;
 @Entity
 @Table(name = "products")
 public class Product implements Serializable {
-
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -45,8 +44,8 @@ public class Product implements Serializable {
     @Column(name = "quantity_status")
     private String quantityStatus;
 
-    @Column(name = "price")
-    private Long price;
+    @Column(name = "price_unit")
+    private Double priceUnit;
 
     @Column(name = "discount")
     private Long discount;
@@ -55,13 +54,25 @@ public class Product implements Serializable {
     @JoinColumn(name = "category_id")
     private Category category;
 
-    public void setQuantityStatus(Integer quantity) {
-        if (quantity == 0) {
+    @PrePersist
+    @PreUpdate
+    public void calculateQuantityStatus() {
+        if (this.quantity == null) {
             this.quantityStatus = QuantityStatus.NOT_IN_STOCK.toString();
-        } else if (quantity > 0 && quantity <= 5) {
+            return;
+        }
+
+        if (this.quantity == 0) {
+            this.quantityStatus = QuantityStatus.NOT_IN_STOCK.toString();
+        } else if (this.quantity > 0 && this.quantity <= 5) {
             this.quantityStatus = QuantityStatus.FEW.toString();
         } else {
             this.quantityStatus = QuantityStatus.IN_STOCK.toString();
         }
+    }
+
+    public void setQuantity(Integer quantity) {
+        this.quantity = quantity;
+        this.calculateQuantityStatus();
     }
 }

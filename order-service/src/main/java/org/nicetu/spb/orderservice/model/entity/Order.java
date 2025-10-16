@@ -16,16 +16,16 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.io.Serial;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
 @Table(name = "orders")
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true, exclude = {"cart"})
+@EqualsAndHashCode(exclude = {"cart", "orderItems"})
 @Data
 @Builder
 public class Order {
-
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -47,11 +47,13 @@ public class Order {
     @Column(name = "order_fee", columnDefinition = "decimal")
     private Double orderFee;
 
-    @Column(name = "product_id")
-    private Integer productId;
+    @Column(name = "status")
+    private String status;
+
+    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private Set<OrderItem> orderItems;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cart_id")
     private Cart cart;
-
 }

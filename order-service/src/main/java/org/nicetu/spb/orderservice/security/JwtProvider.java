@@ -77,4 +77,25 @@ public class JwtProvider {
         return false;
     }
 
+    public String getEmailFromToken(String token) {
+
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+
+        try {
+            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+            Claims claims = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            return claims.getSubject();
+        } catch (Exception e) {
+            log.error("Error extracting email from token", e);
+            return null;
+        }
+    }
+
 }

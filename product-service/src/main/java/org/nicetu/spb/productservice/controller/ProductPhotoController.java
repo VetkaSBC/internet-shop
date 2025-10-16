@@ -20,7 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/routes/{routeId}/photos")
+@RequestMapping("/api/products/{productId}/photos")
 @RequiredArgsConstructor
 public class ProductPhotoController {
 
@@ -37,18 +37,18 @@ public class ProductPhotoController {
 
     @GetMapping("/{photoId}/content")
     public ResponseEntity<byte[]> getPhotoContent(
-            @PathVariable Long prodcutId,
+            @PathVariable Long productId,
             @PathVariable Long photoId) {
 
         byte[] content = productPhotoService.getPhotoContent(photoId);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_JPEG_VALUE)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)
                 .body(content);
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductPhotoDto>> getRoutePhotos(@PathVariable Long productId) {
+    public ResponseEntity<List<ProductPhotoDto>> getProductPhotos(@PathVariable Long productId) {
         List<ProductPhotoDto> photos = productPhotoService.findAllPhotoByProductId(productId);
         return ResponseEntity.ok(photos);
     }
@@ -59,4 +59,8 @@ public class ProductPhotoController {
         ProductPhotoDto photo = productPhotoService.findById(photoId);
         return ResponseEntity.ok(photo);
     }
+
+
+
+
 }

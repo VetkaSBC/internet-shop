@@ -108,7 +108,16 @@ public class UserManagerController {
     }
 
     @GetMapping("/info")
-    public ResponseEntity<?> getUserInfo(@RequestHeader("Authorization") String token) {
+    public ResponseEntity<?> getUserInfo(@RequestHeader(value = "Authorization", required = false) String token) {
+        log.info("Received token: {}", token);
+
+        if (token == null) {
+            log.warn("Authorization header is null");
+            return new ResponseEntity<>(
+                    new ResponseMessage("Authorization header is required"),
+                    HttpStatus.BAD_REQUEST
+            );
+        }
         String username = jwtProvider.getEmailFromToken(token);
         UserDto user = userService.findByEmail(username)
                 .map((element) -> modelMapper.map(element, UserDto.class))

@@ -1,9 +1,6 @@
 package org.nicetu.spb.userservice.service;
 
-import org.nicetu.spb.userservice.model.dto.request.ChangePasswordRequest;
-import org.nicetu.spb.userservice.model.dto.request.Login;
-import org.nicetu.spb.userservice.model.dto.request.SignUp;
-import org.nicetu.spb.userservice.model.dto.request.UserDto;
+import org.nicetu.spb.userservice.model.dto.request.*;
 import org.nicetu.spb.userservice.model.dto.response.JwtResponseMessage;
 import org.nicetu.spb.userservice.model.entity.User;
 import org.springframework.data.domain.Page;
@@ -21,5 +18,6 @@ public interface UserService {
     Optional<User> findById(Long userId);
     Optional<User> findByEmail(String email);
     Page<UserDto> findAllUsers(int page, int size, String sortBy, String sortOrder);
-
+    Mono<String> resetPassword(String token, ResetPasswordRequest request);
+    Mono<JwtResponseMessage> refreshToken(String refreshToken);
 }

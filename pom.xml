@@ -21,7 +21,6 @@
         <module>user-service</module>
         <module>media-service</module>
         <module>product-service</module>
-        <module>inventory-service</module>
         <module>order-service</module>
     </modules>
 

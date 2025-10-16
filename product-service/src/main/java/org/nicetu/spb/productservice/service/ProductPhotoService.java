@@ -10,6 +10,7 @@ public interface ProductPhotoService {
     ProductPhotoDto findById(Long id);
     List<ProductPhotoDto> findAllPhotoByProductId(Long productId);
     byte[] getPhotoContent(Long photoId);
+    String getPhotoContentType(Long photoId);
     ProductPhotoDto createPhoto(ProductPhotoDto productPhotoDto);
     ProductPhotoDto createPhotoForProduct(Long routeId, ProductPhotoDto productPhotoDto);
     ProductPhotoDto createPhotoForProduct(Long routeId, MultipartFile photoFile);

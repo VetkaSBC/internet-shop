@@ -104,6 +104,10 @@ public class JwtProvider {
     }
 
     public String getEmailFromToken(String token) {
+        while (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)))

@@ -12,7 +12,8 @@ public interface ProductMapping {
                 .title(product.getTitle())
                 .description(product.getDescription())
                 .quantity(product.getQuantity())
-                .price(product.getPrice())
+                .quantityStatus(product.getQuantityStatus())
+                .priceUnit(product.getPriceUnit()) // Добавлено
                 .discount(product.getDiscount())
                 .categoryDto(
                         CategoryDto.builder()
@@ -28,7 +29,7 @@ public interface ProductMapping {
                 .title(productDto.getTitle())
                 .description(productDto.getDescription())
                 .quantity(productDto.getQuantity())
-                .price(productDto.getPrice())
+                .priceUnit(productDto.getPriceUnit()) // Добавлено
                 .discount(productDto.getDiscount())
                 .category(
                         Category.builder()

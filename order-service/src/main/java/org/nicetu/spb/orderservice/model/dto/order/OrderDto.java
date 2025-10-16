@@ -1,6 +1,7 @@
 package org.nicetu.spb.orderservice.model.dto.order;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -19,13 +20,14 @@ import org.springframework.format.annotation.DateTimeFormat;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class OrderDto implements Serializable {
-
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -39,15 +41,13 @@ public class OrderDto implements Serializable {
 
     private String orderDesc;
     private Double orderFee;
+    private String status;
 
-    private Integer productId;
-
-    @JsonProperty("product")
+    @JsonProperty("orderItems")
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ProductDto productDto;
+    private Set<OrderItemDto> orderItemDtos;
 
     @JsonProperty("cart")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private CartDto cartDto;
-
 }
