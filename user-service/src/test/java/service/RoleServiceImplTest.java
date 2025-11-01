@@ -272,7 +272,7 @@ class RoleServiceImplTest {
         Long userId = 1L;
 
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
-        
+
         UserNotFoundException exception = assertThrows(UserNotFoundException.class, () -> {
             roleService.getUserRoles(userId);
         });
