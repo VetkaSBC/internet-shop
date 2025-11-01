@@ -6,9 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.nicetu.spb.orderservice.model.dto.order.OrderDto;
-import org.nicetu.spb.orderservice.model.dto.order.OrderEmailDto;
 import org.nicetu.spb.orderservice.model.dto.order.OrderItemDto;
-import org.nicetu.spb.orderservice.model.dto.user.UserDto;
 import org.nicetu.spb.orderservice.security.JwtProvider;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;

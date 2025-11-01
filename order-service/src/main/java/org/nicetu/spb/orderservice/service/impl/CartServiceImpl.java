@@ -14,7 +14,11 @@ import org.nicetu.spb.orderservice.security.JwtTokenFilter;
 import org.nicetu.spb.orderservice.service.CallAPI;
 import org.nicetu.spb.orderservice.service.CartService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -28,9 +32,6 @@ public class CartServiceImpl implements CartService {
 
     @Autowired
     private final CartRepository cartRepository;
-
-    @Autowired
-    private final OrderServiceImpl orderService;
 
     @Autowired
     private final OrderRepository orderRepository;

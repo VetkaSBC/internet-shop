@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # Discovery Service
+  discovery-service:
+    build: ./discovery-service
+    ports: ["8761:8761"]
+    networks: ["microservices-network"]
+
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    ports: ["8080:8080"]
+    depends_on: ["discovery-service"]
+    networks: ["microservices-network"]
+
+  # User Service
+  user-service:
+    build: ./user-service
+    ports: [ "8088:8088" ]
+    env_file: ./user-service/.env
+    depends_on:
+      - discovery-service
+      - user-db
+      - kafka
+    networks: [ "microservices-network" ]
+
+  user-db:
+    image: postgres:15-alpine
+    env_file: ./user-service/.env
+    volumes:
+      - "user_db_data:/var/lib/postgresql/data"
+      - "./user-service/src/main/resources/db/init.sql:/docker-entrypoint-initdb.d/init.sql"
+    networks:
+      - "microservices-network"
+
+  # Media Service
+  media-service:
+    build: ./media-service
+    ports: ["8090:8090"]
+    environment:
+      - YC_ACCESS_KEY_ID=your_access_key
+      - YC_SECRET_ACCESS_KEY=your_secret_key
+      - YC_BUCKET=catfish-files
+    depends_on: ["discovery-service"]
+    networks: ["microservices-network"]
+
+  # Order Service
+  order-service:
+    build: ./order-service
+    ports: [ "8084:8084" ]
+    env_file: ./order-service/.env
+    depends_on:
+      - discovery-service
+      - order-db
+      - user-service
+      - product-service
+    networks: [ "microservices-network" ]
+
+  order-db:
+    image: postgres:15-alpine
+    env_file: ./order-service/.env
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+    networks: [ "microservices-network" ]
+
+  # Product Service
+  product-service:
+    build: ./product-service
+    ports: ["8089:8089"]
+    env_file: ./product-service/.env
+    depends_on:
+      - discovery-service
+      - product-db
+      - media-service
+    networks: ["microservices-network"]
+
+  product-db:
+    image: postgres:15-alpine
+    env_file: ./product-service/.env
+    volumes: ["product_db_data:/var/lib/postgresql/data"]
+    networks: ["microservices-network"]
+
+  # Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks: ["microservices-network"]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  user_db_data:
+  order_db_data:
+  product_db_data:

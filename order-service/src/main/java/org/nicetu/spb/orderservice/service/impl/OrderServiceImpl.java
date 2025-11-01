@@ -10,13 +10,16 @@ import org.nicetu.spb.orderservice.model.dto.order.OrderItemDto;
 import org.nicetu.spb.orderservice.model.entity.Order;
 import org.nicetu.spb.orderservice.repository.OrderRepository;
 import org.nicetu.spb.orderservice.security.JwtProvider;
-import org.nicetu.spb.orderservice.security.JwtTokenFilter;
 import org.nicetu.spb.orderservice.service.CallAPI;
 import org.nicetu.spb.orderservice.service.EmailService;
 import org.nicetu.spb.orderservice.service.InventoryService;
 import org.nicetu.spb.orderservice.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -32,9 +35,6 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private final OrderRepository orderRepository;
-
-    @Autowired
-    private final ModelMapper modelMapper;
 
     @Autowired
     private final CallAPI callAPI;

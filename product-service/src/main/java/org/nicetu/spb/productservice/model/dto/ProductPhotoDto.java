@@ -2,12 +2,10 @@ package org.nicetu.spb.productservice.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.nicetu.spb.productservice.model.entity.Product;
 
 import java.io.Serial;
 import java.io.Serializable;

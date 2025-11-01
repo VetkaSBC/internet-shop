@@ -12,9 +12,8 @@ public interface CategoryService {
     Flux<List<CategoryDto>> findAll();
 
     Page<CategoryDto> findAllCategory(int page, int size);
+
     List<CategoryDto> getAllCategories(Integer pageNo, Integer pageSize, String sortBy);
-
-
 
     CategoryDto findById(final Integer categoryId);
 
