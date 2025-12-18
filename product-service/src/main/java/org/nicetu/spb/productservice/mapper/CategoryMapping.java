@@ -2,40 +2,42 @@ package org.nicetu.spb.productservice.mapper;
 
 import org.nicetu.spb.productservice.model.dto.CategoryDto;
 import org.nicetu.spb.productservice.model.entity.Category;
+import org.springframework.stereotype.Component;
 
-import java.util.Optional;
+import java.util.stream.Collectors;
 
-public interface CategoryMapping {
+@Component
+public class CategoryMapping {
 
-    static CategoryDto mapToDto(Category category) {
-        var parentCategory = Optional.ofNullable(category.getParentCategory())
-                .orElseGet(Category::new);
+    public static CategoryDto mapToDto(Category category) {
+        if (category == null) return null;
 
         return CategoryDto.builder()
                 .categoryId(category.getCategoryId())
                 .categoryTitle(category.getCategoryTitle())
-                .parentCategoryDto(
+                .parentCategoryDto(category.getParentCategoryId() != null ?
                         CategoryDto.builder()
-                                .categoryId(parentCategory.getCategoryId())
-                                .categoryTitle(parentCategory.getCategoryTitle())
-                                .build())
+                                .categoryId(category.getParentCategoryId())
+                                .build() : null)
+                .subCategoriesDtos(category.getSubCategories() != null ?
+                        category.getSubCategories().stream()
+                                .map(CategoryMapping::mapToDto)
+                                .collect(Collectors.toSet()) : null)
+                .productDtos(category.getProducts() != null ?
+                        category.getProducts().stream()
+                                .map(ProductMapping::mapToDto)
+                                .collect(Collectors.toSet()) : null)
                 .build();
     }
 
-    static Category mapToEntity(CategoryDto categoryDto) {
-        Category category = Category.builder()
+    public static Category mapToEntity(CategoryDto categoryDto) {
+        if (categoryDto == null) return null;
+
+        return Category.builder()
                 .categoryId(categoryDto.getCategoryId())
                 .categoryTitle(categoryDto.getCategoryTitle())
+                .parentCategoryId(categoryDto.getParentCategoryDto() != null ?
+                        categoryDto.getParentCategoryDto().getCategoryId() : null)
                 .build();
-
-        if (categoryDto.getParentCategoryDto() != null &&
-                categoryDto.getParentCategoryDto().getCategoryId() != null) {
-            Category parentCategory = Category.builder()
-                    .categoryId(categoryDto.getParentCategoryDto().getCategoryId())
-                    .build();
-            category.setParentCategory(parentCategory);
-        }
-
-        return category;
     }
 }

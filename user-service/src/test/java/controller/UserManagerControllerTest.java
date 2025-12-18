@@ -22,8 +22,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
 
 import java.util.List;
 import java.util.Optional;
@@ -87,43 +85,50 @@ class UserManagerControllerTest {
     @Test
     void update_Success() {
         Long userId = 1L;
-        when(userService.update(eq(userId), any(SignUp.class))).thenReturn(Mono.just(testUser));
+        when(userService.update(eq(userId), any(SignUp.class))).thenReturn(testUser);
 
-        StepVerifier.create(userManagerController.update(userId, testSignUp))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.OK &&
-                                response.getBody().getMessage().contains("successfully")
-                )
-                .verifyComplete();
+        ResponseEntity<ResponseMessage> response = userManagerController.update(userId, testSignUp);
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().getMessage().contains("successfully"));
         verify(userService).update(eq(userId), any(SignUp.class));
     }
 
     @Test
     void update_Failure() {
         Long userId = 1L;
-        when(userService.update(eq(userId), any(SignUp.class))).thenReturn(Mono.error(new RuntimeException("Update failed")));
+        when(userService.update(eq(userId), any(SignUp.class)))
+                .thenThrow(new RuntimeException("Update failed"));
 
-        StepVerifier.create(userManagerController.update(userId, testSignUp))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.BAD_REQUEST
-                )
-                .verifyComplete();
+        ResponseEntity<ResponseMessage> response = userManagerController.update(userId, testSignUp);
 
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         verify(userService).update(eq(userId), any(SignUp.class));
     }
 
     @Test
     void changePassword_Success() {
         ChangePasswordRequest request = new ChangePasswordRequest();
-        when(userService.changePassword(any(ChangePasswordRequest.class))).thenReturn(Mono.just("Password changed successfully"));
+        when(userService.changePassword(any(ChangePasswordRequest.class)))
+                .thenReturn("Password changed successfully");
 
-        StepVerifier.create(userManagerController.changePassword(request))
-                .expectNextMatches(response ->
-                        response.equals("Password changed successfully")
-                )
-                .verifyComplete();
+        ResponseEntity<String> response = userManagerController.changePassword(request);
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Password changed successfully", response.getBody());
+        verify(userService).changePassword(any(ChangePasswordRequest.class));
+    }
+
+    @Test
+    void changePassword_Failure() {
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        when(userService.changePassword(any(ChangePasswordRequest.class)))
+                .thenThrow(new RuntimeException("Change password failed"));
+
+        ResponseEntity<String> response = userManagerController.changePassword(request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Change password failed", response.getBody());
         verify(userService).changePassword(any(ChangePasswordRequest.class));
     }
 
@@ -132,9 +137,22 @@ class UserManagerControllerTest {
         Long userId = 1L;
         when(userService.delete(userId)).thenReturn("User deleted successfully");
 
-        String result = userManagerController.delete(userId);
+        ResponseEntity<String> response = userManagerController.delete(userId);
 
-        assertEquals("User deleted successfully", result);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("User deleted successfully", response.getBody());
+        verify(userService).delete(userId);
+    }
+
+    @Test
+    void delete_Failure() {
+        Long userId = 1L;
+        when(userService.delete(userId)).thenThrow(new RuntimeException("Delete failed"));
+
+        ResponseEntity<String> response = userManagerController.delete(userId);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Delete failed", response.getBody());
         verify(userService).delete(userId);
     }
 
@@ -157,10 +175,9 @@ class UserManagerControllerTest {
         String username = "nonexistent@example.com";
         when(userService.findByEmail(username)).thenReturn(Optional.empty());
 
-        assertThrows(UserNotFoundException.class, () ->
-                userManagerController.getUserByUsername(username)
-        );
+        ResponseEntity<?> response = userManagerController.getUserByUsername(username);
 
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         verify(userService).findByEmail(username);
     }
 
@@ -183,10 +200,9 @@ class UserManagerControllerTest {
         Long userId = 1L;
         when(userService.findById(userId)).thenReturn(Optional.empty());
 
-        assertThrows(UserNotFoundException.class, () ->
-                userManagerController.getUserById(userId)
-        );
+        ResponseEntity<?> response = userManagerController.getUserById(userId);
 
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         verify(userService).findById(userId);
     }
 
@@ -204,6 +220,23 @@ class UserManagerControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(userPage, response.getBody());
+        verify(userService).findAllUsers(page, size, sortBy, sortOrder);
+    }
+
+    @Test
+    void getAllUsers_EmptyPage() {
+        int page = 0;
+        int size = 10;
+        String sortBy = "id";
+        String sortOrder = "ASC";
+
+        Page<UserDto> emptyPage = new PageImpl<>(List.of());
+        when(userService.findAllUsers(page, size, sortBy, sortOrder)).thenReturn(emptyPage);
+
+        ResponseEntity<Page<UserDto>> response = userManagerController.getAllUsers(page, size, sortBy, sortOrder);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().isEmpty());
         verify(userService).findAllUsers(page, size, sortBy, sortOrder);
     }
 
@@ -229,10 +262,9 @@ class UserManagerControllerTest {
         when(jwtProvider.getEmailFromToken(token)).thenReturn("john.doe@example.com");
         when(userService.findByEmail("john.doe@example.com")).thenReturn(Optional.empty());
 
-        assertThrows(TokenErrorOrAccessTimeOut.class, () ->
-                userManagerController.getUserInfo(token)
-        );
+        ResponseEntity<?> response = userManagerController.getUserInfo(token);
 
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         verify(jwtProvider).getEmailFromToken(token);
         verify(userService).findByEmail("john.doe@example.com");
     }
@@ -250,38 +282,5 @@ class UserManagerControllerTest {
         verify(jwtProvider, never()).getEmailFromToken(anyString());
         verify(userService, never()).findByEmail(anyString());
         verify(modelMapper, never()).map(any(), any());
-    }
-
-    @Test
-    void changePassword_Failure() {
-        ChangePasswordRequest request = new ChangePasswordRequest();
-        when(userService.changePassword(any(ChangePasswordRequest.class)))
-                .thenReturn(Mono.error(new RuntimeException("Change password failed")));
-
-        StepVerifier.create(userManagerController.changePassword(request))
-                .expectErrorMatches(throwable ->
-                        throwable instanceof RuntimeException &&
-                                throwable.getMessage().equals("Change password failed")
-                )
-                .verify();
-
-        verify(userService).changePassword(any(ChangePasswordRequest.class));
-    }
-
-    @Test
-    void getAllUsers_EmptyPage() {
-        int page = 0;
-        int size = 10;
-        String sortBy = "id";
-        String sortOrder = "ASC";
-
-        Page<UserDto> emptyPage = new PageImpl<>(List.of());
-        when(userService.findAllUsers(page, size, sortBy, sortOrder)).thenReturn(emptyPage);
-
-        ResponseEntity<Page<UserDto>> response = userManagerController.getAllUsers(page, size, sortBy, sortOrder);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody().isEmpty());
-        verify(userService).findAllUsers(page, size, sortBy, sortOrder);
     }
 }

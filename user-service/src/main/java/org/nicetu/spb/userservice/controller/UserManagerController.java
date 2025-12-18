@@ -1,7 +1,6 @@
 package org.nicetu.spb.userservice.controller;
 
 import lombok.extern.slf4j.Slf4j;
-
 import org.modelmapper.ModelMapper;
 import org.nicetu.spb.userservice.exception.wrapper.TokenErrorOrAccessTimeOut;
 import org.nicetu.spb.userservice.exception.wrapper.UserNotFoundException;
@@ -17,25 +16,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
-
-import java.util.Optional;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/manager")
 public class UserManagerController {
     private final ModelMapper modelMapper;
-
     private final UserService userService;
     private final HeaderGenerator headerGenerator;
     private final JwtProvider jwtProvider;
@@ -51,57 +38,69 @@ public class UserManagerController {
 
     @PutMapping("update/{id}")
     @PreAuthorize("isAuthenticated() and hasAuthority('USER')")
-    public Mono<ResponseEntity<ResponseMessage>> update(@PathVariable("id") Long id, @RequestBody SignUp updateDTO) {
-        return userService.update(id, updateDTO)
-                .flatMap(user -> Mono.just(new ResponseEntity<>(
-                        new ResponseMessage("Update user: " + updateDTO.getEmail() + " successfully."),
-                        HttpStatus.OK))
-                )
-                .onErrorResume(
-                        error -> Mono.just(new ResponseEntity<>(
-                                new ResponseMessage("Update user: " + updateDTO.getEmail() + " failed " + error.getMessage()),
-                                HttpStatus.BAD_REQUEST)
-                        )
-                );
+    public ResponseEntity<ResponseMessage> update(@PathVariable("id") Long id, @RequestBody SignUp updateDTO) {
+        try {
+            userService.update(id, updateDTO);
+            return new ResponseEntity<>(
+                    new ResponseMessage("Update user: " + updateDTO.getEmail() + " successfully."),
+                    HttpStatus.OK);
+        } catch (Exception error) {
+            return new ResponseEntity<>(
+                    new ResponseMessage("Update user: " + updateDTO.getEmail() + " failed " + error.getMessage()),
+                    HttpStatus.BAD_REQUEST);
+        }
     }
 
     @PutMapping("/change-password")
     @PreAuthorize("isAuthenticated() and hasAuthority('USER')")
-    public Mono<String> changePassword(@RequestBody ChangePasswordRequest request) {
-        return userService.changePassword(request);
+    public ResponseEntity<String> changePassword(@RequestBody ChangePasswordRequest request) {
+        try {
+            String result = userService.changePassword(request);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     @DeleteMapping("delete/{id}")
     @PreAuthorize("isAuthenticated() and (hasAuthority('USER') or hasAuthority('ADMIN'))")
-    public String delete(@PathVariable("id") Long id) {
-        return userService.delete(id);
+    public ResponseEntity<String> delete(@PathVariable("id") Long id) {
+        try {
+            String result = userService.delete(id);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     @GetMapping("/user")
     @PreAuthorize("(isAuthenticated() and (hasAuthority('USER') and principal.username == #username) or hasAuthority('ADMIN'))")
     public ResponseEntity<?> getUserByUsername(@RequestParam(value = "username") String username) {
-        Optional<UserDto> user = Optional.ofNullable(userService.findByEmail(username)
-                .map((element) -> modelMapper.map(element, UserDto.class))
-                .orElseThrow(() -> new UserNotFoundException("User not found with: " + username)));
-        return user.map(u -> new ResponseEntity<>(u,
-                        headerGenerator.getHeadersForSuccessGetMethod(),
-                        HttpStatus.OK)
-                )
-                .orElseGet(() -> new ResponseEntity<>(null,
-                        headerGenerator.getHeadersForError(),
-                        HttpStatus.NOT_FOUND)
-                );
+        try {
+            UserDto user = userService.findByEmail(username)
+                    .map(element -> modelMapper.map(element, UserDto.class))
+                    .orElseThrow(() -> new UserNotFoundException("User not found with: " + username));
+            return new ResponseEntity<>(user,
+                    headerGenerator.getHeadersForSuccessGetMethod(),
+                    HttpStatus.OK);
+        } catch (UserNotFoundException e) {
+            return new ResponseEntity<>(null,
+                    headerGenerator.getHeadersForError(),
+                    HttpStatus.NOT_FOUND);
+        }
     }
 
     @GetMapping("/user/{id}")
     @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER') and principal.id == #id")
     public ResponseEntity<?> getUserById(@PathVariable("id") Long id) {
-        Optional<UserDto> userDTO = Optional.ofNullable(userService.findById(id)
-                .map((element) -> modelMapper.map(element, UserDto.class))
-                .orElseThrow(() -> new UserNotFoundException("User not found with: " + id)));
-        return (userDTO.isPresent())
-                ? new ResponseEntity<>(userDTO.get(), headerGenerator.getHeadersForSuccessGetMethod(), HttpStatus.OK)
-                : new ResponseEntity<>(null, headerGenerator.getHeadersForError(), HttpStatus.NOT_FOUND);
+        try {
+            UserDto userDTO = userService.findById(id)
+                    .map(element -> modelMapper.map(element, UserDto.class))
+                    .orElseThrow(() -> new UserNotFoundException("User not found with: " + id));
+            return new ResponseEntity<>(userDTO, headerGenerator.getHeadersForSuccessGetMethod(), HttpStatus.OK);
+        } catch (UserNotFoundException e) {
+            return new ResponseEntity<>(null, headerGenerator.getHeadersForError(), HttpStatus.NOT_FOUND);
+        }
     }
 
     @GetMapping("/all")
@@ -110,7 +109,6 @@ public class UserManagerController {
                                                      @RequestParam(defaultValue = "10") int size,
                                                      @RequestParam(defaultValue = "id") String sortBy,
                                                      @RequestParam(defaultValue = "ASC") String sortOrder) {
-
         Page<UserDto> usersPage = userService.findAllUsers(page, size, sortBy, sortOrder);
         return new ResponseEntity<>(usersPage, headerGenerator.getHeadersForSuccessGetMethod(), HttpStatus.OK);
     }
@@ -126,13 +124,15 @@ public class UserManagerController {
                     HttpStatus.BAD_REQUEST
             );
         }
-        String username = jwtProvider.getEmailFromToken(token);
-        UserDto user = userService.findByEmail(username)
-                .map((element) -> modelMapper.map(element, UserDto.class))
-                .orElseThrow(() -> new TokenErrorOrAccessTimeOut("Token error or access timeout"));
+        try {
+            String username = jwtProvider.getEmailFromToken(token);
+            UserDto user = userService.findByEmail(username)
+                    .map(element -> modelMapper.map(element, UserDto.class))
+                    .orElseThrow(() -> new TokenErrorOrAccessTimeOut("Token error or access timeout"));
 
-        return (user != null)
-                ? new ResponseEntity<>(user, headerGenerator.getHeadersForSuccessGetMethod(), HttpStatus.OK)
-                : new ResponseEntity<>(null, headerGenerator.getHeadersForError(), HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(user, headerGenerator.getHeadersForSuccessGetMethod(), HttpStatus.OK);
+        } catch (TokenErrorOrAccessTimeOut e) {
+            return new ResponseEntity<>(null, headerGenerator.getHeadersForError(), HttpStatus.NOT_FOUND);
+        }
     }
 }

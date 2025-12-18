@@ -15,7 +15,7 @@ public interface OrderItemMappingHelper {
                 .price(orderItem.getPrice())
                 .totalPrice(orderItem.getTotalPrice())
                 .orderDto(OrderDto.builder()
-                        .orderId(orderItem.getOrder().getOrderId())
+                        .orderId(orderItem.getOrderId())
                         .build())
                 .build();
     }
@@ -23,20 +23,14 @@ public interface OrderItemMappingHelper {
     static OrderItem mapToEntity(final OrderItemDto orderItemDto) {
         if (orderItemDto == null) return null;
 
-        Order order = null;
-        if (orderItemDto.getOrderDto() != null && orderItemDto.getOrderDto().getOrderId() != null) {
-            order = Order.builder()
-                    .orderId(orderItemDto.getOrderDto().getOrderId())
-                    .build();
-        }
-
         return OrderItem.builder()
                 .orderItemId(orderItemDto.getOrderItemId())
                 .productId(orderItemDto.getProductId())
                 .quantity(orderItemDto.getQuantity())
                 .price(orderItemDto.getPrice())
                 .totalPrice(orderItemDto.getTotalPrice())
-                .order(order)
+                .orderId(orderItemDto.getOrderDto() != null ?
+                        orderItemDto.getOrderDto().getOrderId() : null)
                 .build();
     }
 }

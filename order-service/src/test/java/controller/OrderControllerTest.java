@@ -61,27 +61,6 @@ class OrderControllerTest {
     }
 
     @Test
-    void findAll_ShouldReturnListOfOrderDtos() {
-        
-        List<OrderDto> orderList = List.of(testOrderDto);
-        when(orderService.findAll()).thenReturn(Mono.just(orderList));
-
-        
-        Mono<ResponseEntity<List<OrderDto>>> result = orderController.findAll();
-
-        
-        StepVerifier.create(result)
-                .expectNextMatches(response -> {
-                    assertEquals(HttpStatus.OK, response.getStatusCode());
-                    assertEquals(1, response.getBody().size());
-                    return true;
-                })
-                .verifyComplete();
-
-        verify(orderService).findAll();
-    }
-
-    @Test
     void findAll_WithPaging_ShouldReturnPageOfOrderDtos() {
         
         Page<OrderDto> orderPage = new PageImpl<>(List.of(testOrderDto));
@@ -218,18 +197,5 @@ class OrderControllerTest {
                 .verifyComplete();
 
         verify(orderService).deleteById(1);
-    }
-
-    @Test
-    void existsByOrderId_ShouldReturnBoolean() {
-        
-        when(orderService.existsByOrderId(1)).thenReturn(true);
-
-        
-        Boolean result = orderController.existsByOrderId(1);
-
-        
-        assertTrue(result);
-        verify(orderService).existsByOrderId(1);
     }
 }

@@ -26,10 +26,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import reactor.core.publisher.Mono;
 
-
-import java.util.Collections;
-import java.util.List;
-
 @Slf4j
 @RequiredArgsConstructor
 @RestController
@@ -38,16 +34,6 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
-
-
-    @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
-    public Mono<ResponseEntity<List<OrderDto>>> findAll() {
-        log.info("*** OrderDto List, controller; fetch all orders *");
-        return orderService.findAll()
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.ok(Collections.emptyList()));
-    }
 
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
@@ -127,8 +113,8 @@ public class OrderController {
     }
 
 
-    @GetMapping("/existOrderId")
-    public Boolean existsByOrderId(Integer orderId) {
+    @GetMapping("/existOrderId/{orderId}")
+    public Mono<Boolean> existsByOrderId(@PathVariable("orderId") final Integer orderId) {
         return orderService.existsByOrderId(orderId);
     }
 

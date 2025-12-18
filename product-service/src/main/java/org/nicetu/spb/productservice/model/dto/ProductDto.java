@@ -2,7 +2,6 @@ package org.nicetu.spb.productservice.model.dto;
 
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,6 +12,7 @@ import lombok.NoArgsConstructor;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Set;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -35,7 +35,5 @@ public class ProductDto implements Serializable {
     private Double priceUnit;
     private Long discount;
 
-    @JsonProperty("category")
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private CategoryDto categoryDto;
+    private Set<CategoryDto> categories;
 }

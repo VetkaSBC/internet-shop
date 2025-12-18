@@ -22,6 +22,6 @@ public class JwtEntryPoint implements AuthenticationEntryPoint {
                          AuthenticationException authException)
             throws IOException, ServletException {
         logger.error("Unauthenticated error Message {}", authException.getMessage());
-        response.sendError(HttpServletResponse.SC_ACCEPTED, authException.getMessage());
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
     }
 }

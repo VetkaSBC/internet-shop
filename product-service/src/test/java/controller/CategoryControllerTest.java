@@ -1,147 +1,231 @@
 package controller;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.nicetu.spb.productservice.controller.CategoryController;
 import org.nicetu.spb.productservice.model.dto.CategoryDto;
 import org.nicetu.spb.productservice.service.CategoryService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import reactor.core.publisher.Flux;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
-import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doNothing;
 
-@ExtendWith(MockitoExtension.class)
+@WebFluxTest
+@ContextConfiguration(classes = CategoryControllerTest.TestConfig.class)
 class CategoryControllerTest {
 
-    @Mock
+    @Configuration
+    static class TestConfig {
+        @Bean
+        public CategoryController categoryController(CategoryService categoryService) {
+            return new CategoryController(categoryService);
+        }
+
+        @Bean
+        public CategoryService categoryService() {
+            return mock(CategoryService.class);
+        }
+    }
+
+    @Autowired
+    private WebTestClient webTestClient;
+
+    @Autowired
     private CategoryService categoryService;
 
-    @InjectMocks
-    private CategoryController categoryController;
-
-    private CategoryDto categoryDto;
-
-    @BeforeEach
-    void setUp() {
-        categoryDto = CategoryDto.builder()
+    @Test
+    void getCategoryById_shouldReturnCategory() {
+        CategoryDto categoryDto = CategoryDto.builder()
                 .categoryId(1)
                 .categoryTitle("Electronics")
                 .build();
+
+        when(categoryService.findById(1)).thenReturn(Mono.just(categoryDto));
+
+        webTestClient.get()
+                .uri("/api/categories/{id}", 1)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.categoryId").isEqualTo(1)
+                .jsonPath("$.categoryTitle").isEqualTo("Electronics");
     }
 
     @Test
-    void findAll_ShouldReturnFluxOfCategories() {
-        List<CategoryDto> categories = Arrays.asList(categoryDto);
-        when(categoryService.findAll()).thenReturn(Flux.just(categories));
+    void getCategoryById_shouldReturnNotFound() {
+        when(categoryService.findById(999)).thenReturn(Mono.empty());
 
-        ResponseEntity<Flux<List<CategoryDto>>> response = categoryController.findAll();
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(categoryService).findAll();
+        webTestClient.get()
+                .uri("/api/categories/{id}", 999)
+                .exchange()
+                .expectStatus().isNotFound();
     }
 
     @Test
-    void getAllCategoriesWithPaging_ShouldReturnPageOfCategories() {
-        Page<CategoryDto> categoryPage = new PageImpl<>(Arrays.asList(categoryDto));
-        when(categoryService.findAllCategory(0, 10)).thenReturn(categoryPage);
+    void getAllCategories_shouldReturnCategories() {
+        CategoryDto categoryDto = CategoryDto.builder()
+                .categoryId(1)
+                .categoryTitle("Electronics")
+                .build();
 
-        ResponseEntity<Page<CategoryDto>> response = categoryController.getAllCategories(0, 10);
+        Page<CategoryDto> page = new PageImpl<>(List.of(categoryDto), PageRequest.of(0, 10), 1);
+        when(categoryService.findAllCategory(anyInt(), anyInt())).thenReturn(Mono.just(page));
 
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        verify(categoryService).findAllCategory(0, 10);
+        webTestClient.get()
+                .uri("/api/categories/paging?page=0&size=10")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.content.length()").isEqualTo(1)
+                .jsonPath("$.content[0].categoryId").isEqualTo(1)
+                .jsonPath("$.totalElements").isEqualTo(1);
     }
 
     @Test
-    void getAllCategoriesWithPagingAndSorting_ShouldReturnListOfCategories() {
-        List<CategoryDto> categories = Arrays.asList(categoryDto);
-        when(categoryService.getAllCategories(0, 10, "categoryId")).thenReturn(categories);
+    void getAllCategoriesSorted_shouldReturnSortedCategories() {
+        CategoryDto categoryDto = CategoryDto.builder()
+                .categoryId(1)
+                .categoryTitle("Electronics")
+                .build();
 
-        ResponseEntity<List<CategoryDto>> response = categoryController.getAllEmployees(0, 10, "categoryId");
+        Page<CategoryDto> page = new PageImpl<>(List.of(categoryDto), PageRequest.of(0, 10), 1);
+        when(categoryService.findAllCategory(anyInt(), anyInt())).thenReturn(Mono.just(page));
 
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        verify(categoryService).getAllCategories(0, 10, "categoryId");
+        webTestClient.get()
+                .uri("/api/categories/paging-and-sorting?pageNo=0&pageSize=10&sortBy=categoryId")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.content.length()").isEqualTo(1)
+                .jsonPath("$.content[0].categoryId").isEqualTo(1);
     }
 
     @Test
-    void findById_ShouldReturnCategory() {
-        when(categoryService.findById(1)).thenReturn(categoryDto);
+    void createCategory_shouldReturnCreated() {
+        CategoryDto request = CategoryDto.builder()
+                .categoryTitle("Electronics")
+                .build();
 
-        ResponseEntity<CategoryDto> response = categoryController.findById("1");
+        CategoryDto response = CategoryDto.builder()
+                .categoryId(1)
+                .categoryTitle("Electronics")
+                .build();
 
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        verify(categoryService).findById(1);
+        when(categoryService.save(any(CategoryDto.class))).thenReturn(Mono.just(response));
+
+        webTestClient.post()
+                .uri("/api/categories")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.categoryId").isEqualTo(1)
+                .jsonPath("$.categoryTitle").isEqualTo("Electronics");
     }
 
     @Test
-    void save_ShouldReturnSavedCategory() {
-        when(categoryService.save(any(CategoryDto.class))).thenReturn(Mono.just(categoryDto));
+    void updateCategory_shouldReturnUpdatedCategory() {
+        CategoryDto request = CategoryDto.builder()
+                .categoryId(1)
+                .categoryTitle("Updated Electronics")
+                .build();
 
-        ResponseEntity<Mono<CategoryDto>> response = categoryController.save(categoryDto);
+        when(categoryService.update(any(CategoryDto.class))).thenReturn(Mono.just(request));
 
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        verify(categoryService).save(any(CategoryDto.class));
+        webTestClient.put()
+                .uri("/api/categories")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.categoryId").isEqualTo(1)
+                .jsonPath("$.categoryTitle").isEqualTo("Updated Electronics");
     }
 
     @Test
-    void update_ShouldReturnUpdatedCategory() {
-        when(categoryService.update(any(CategoryDto.class))).thenReturn(categoryDto);
+    void updateCategoryById_shouldReturnUpdatedCategory() {
+        CategoryDto request = CategoryDto.builder()
+                .categoryTitle("Updated Electronics")
+                .build();
 
-        ResponseEntity<CategoryDto> response = categoryController.update(categoryDto);
+        CategoryDto response = CategoryDto.builder()
+                .categoryId(1)
+                .categoryTitle("Updated Electronics")
+                .build();
 
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        verify(categoryService).update(any(CategoryDto.class));
+        when(categoryService.update(1, request)).thenReturn(Mono.just(response));
+
+        webTestClient.put()
+                .uri("/api/categories/{id}", 1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.categoryId").isEqualTo(1)
+                .jsonPath("$.categoryTitle").isEqualTo("Updated Electronics");
     }
 
     @Test
-    void updateWithId_ShouldReturnUpdatedCategory() {
-        when(categoryService.update(anyInt(), any(CategoryDto.class))).thenReturn(categoryDto);
+    void deleteCategory_shouldReturnNoContent() {
+        when(categoryService.deleteById(1)).thenReturn(Mono.empty());
 
-        ResponseEntity<CategoryDto> response = categoryController.update("1", categoryDto);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        verify(categoryService).update(1, categoryDto);
+        webTestClient.delete()
+                .uri("/api/categories/{id}", 1)
+                .exchange()
+                .expectStatus().isNoContent();
     }
 
     @Test
-    void deleteById_ShouldReturnTrue() {
-        doNothing().when(categoryService).deleteById(1);
+    void deleteCategory_shouldReturnNotFound() {
+        when(categoryService.deleteById(999)).thenReturn(Mono.error(new RuntimeException("Not found")));
 
-        ResponseEntity<Boolean> response = categoryController.deleteById("1");
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody());
-        verify(categoryService).deleteById(1);
+        webTestClient.delete()
+                .uri("/api/categories/{id}", 999)
+                .exchange()
+                .expectStatus().isNotFound();
     }
+
+    @Test
+    void getAllCategories_withoutPaging_shouldReturnBadRequest() {
+        webTestClient.get()
+                .uri("/api/categories")
+                .exchange()
+                .expectStatus().is4xxClientError();
+    }
+
+
+    @Test
+    void updateCategory_withInvalidId_shouldReturnNotFound() {
+        CategoryDto request = CategoryDto.builder()
+                .categoryId(999)
+                .categoryTitle("Not Found")
+                .build();
+
+        when(categoryService.update(any(CategoryDto.class))).thenReturn(Mono.empty());
+
+        webTestClient.put()
+                .uri("/api/categories")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isNotFound();
+    }
+
+
 }

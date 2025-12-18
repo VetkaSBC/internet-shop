@@ -20,7 +20,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -51,24 +50,6 @@ class CartControllerTest {
     }
 
     @Test
-    void findAll_ShouldReturnListOfCartDtos() {
-        List<CartDto> cartList = List.of(testCartDto);
-        when(cartService.findAll()).thenReturn(Mono.just(cartList));
-
-        Mono<ResponseEntity<List<CartDto>>> result = cartController.findAll();
-
-        StepVerifier.create(result)
-                .expectNextMatches(response -> {
-                    assertEquals(HttpStatus.OK, response.getStatusCode());
-                    assertEquals(1, response.getBody().size());
-                    return true;
-                })
-                .verifyComplete();
-
-        verify(cartService).findAll();
-    }
-
-    @Test
     void findAll_WithPaging_ShouldReturnPageOfCartDtos() {
         Page<CartDto> cartPage = new PageImpl<>(List.of(testCartDto));
         when(cartService.findAll(anyInt(), anyInt(), anyString(), anyString()))
@@ -89,19 +70,19 @@ class CartControllerTest {
 
     @Test
     void findById_ShouldReturnCartDto() {
-        when(cartService.findById(1)).thenReturn(Mono.just(testCartDto));
+        Integer cartId = 1;
+        when(cartService.findById(cartId)).thenReturn(Mono.just(testCartDto));
 
-        ResponseEntity<Mono<CartDto>> response = cartController.findById("1");
+        Mono<ResponseEntity<CartDto>> result = cartController.findById(cartId);
 
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-
-        StepVerifier.create(response.getBody())
-                .expectNext(testCartDto)
+        StepVerifier.create(result)
+                .assertNext(response -> {
+                    assertEquals(HttpStatus.OK, response.getStatusCode());
+                    assertEquals(testCartDto, response.getBody());
+                })
                 .verifyComplete();
 
-        verify(cartService).findById(1);
+        verify(cartService).findById(cartId);
     }
 
     @Test

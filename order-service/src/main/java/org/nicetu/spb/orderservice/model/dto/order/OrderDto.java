@@ -14,7 +14,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.nicetu.spb.orderservice.constant.AppConstant;
-import org.nicetu.spb.orderservice.model.dto.product.ProductDto;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.io.Serial;

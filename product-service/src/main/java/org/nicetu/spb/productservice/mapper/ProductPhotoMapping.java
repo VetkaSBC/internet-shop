@@ -1,52 +1,31 @@
 package org.nicetu.spb.productservice.mapper;
 
-import org.nicetu.spb.productservice.model.dto.CategoryDto;
-import org.nicetu.spb.productservice.model.dto.ProductDto;
 import org.nicetu.spb.productservice.model.dto.ProductPhotoDto;
-import org.nicetu.spb.productservice.model.entity.Category;
-import org.nicetu.spb.productservice.model.entity.Product;
 import org.nicetu.spb.productservice.model.entity.ProductPhoto;
+import org.springframework.stereotype.Component;
 
-public interface ProductPhotoMapping {
-    static ProductPhotoDto mapToDto(final ProductPhoto productPhoto) {
+@Component
+public class ProductPhotoMapping {
+
+    public static ProductPhotoDto mapToDto(ProductPhoto photo) {
+        if (photo == null) return null;
+
         return ProductPhotoDto.builder()
-                .photoId(productPhoto.getPhotoId())
-                .productDto(
-                        ProductDto.builder()
-                                .productId(productPhoto.getProduct().getProductId())
-                                .title(productPhoto.getProduct().getTitle())
-                                .description(productPhoto.getProduct().getDescription())
-                                .quantity(productPhoto.getProduct().getQuantity())
-                                .priceUnit(productPhoto.getProduct().getPriceUnit())
-                                .discount(productPhoto.getProduct().getDiscount())
-                                .categoryDto(
-                                        CategoryDto.builder()
-                                                .categoryId(productPhoto.getProduct().getCategory().getCategoryId())
-                                                .categoryTitle(productPhoto.getProduct().getCategory().getCategoryTitle())
-                                                .build())
-                                .build())
-                .photoLink(productPhoto.getPhotoLink())
+                .photoId(photo.getPhotoId())
+                .photoLink(photo.getPhotoLink())
+                .productDto(photo.getProduct() != null ?
+                        ProductMapping.mapToDto(photo.getProduct()) : null)
                 .build();
     }
 
-    static ProductPhoto mapToEntity(ProductPhotoDto productPhotoDto) {
+    public static ProductPhoto mapToEntity(ProductPhotoDto photoDto) {
+        if (photoDto == null) return null;
+
         return ProductPhoto.builder()
-                .photoId(productPhotoDto.getPhotoId())
-                .product(
-                        Product.builder()
-                                .productId(productPhotoDto.getProductDto().getProductId())
-                                .title(productPhotoDto.getProductDto().getTitle())
-                                .description(productPhotoDto.getProductDto().getDescription())
-                                .quantity(productPhotoDto.getProductDto().getQuantity())
-                                .priceUnit(productPhotoDto.getProductDto().getPriceUnit())
-                                .discount(productPhotoDto.getProductDto().getDiscount())
-                                .category(
-                                        Category.builder()
-                                                .categoryId(productPhotoDto.getProductDto().getCategoryDto().getCategoryId())
-                                                .categoryTitle(productPhotoDto.getProductDto().getCategoryDto().getCategoryTitle())
-                                                .build())
-                                .build())
-                .photoLink(productPhotoDto.getPhotoLink())
+                .photoId(photoDto.getPhotoId())
+                .photoLink(photoDto.getPhotoLink())
+                .productId(photoDto.getProductDto() != null ?
+                        photoDto.getProductDto().getProductId() : null)
                 .build();
     }
 }

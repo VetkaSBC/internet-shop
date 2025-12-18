@@ -4,20 +4,19 @@ import org.nicetu.spb.userservice.model.dto.request.*;
 import org.nicetu.spb.userservice.model.dto.response.JwtResponseMessage;
 import org.nicetu.spb.userservice.model.entity.User;
 import org.springframework.data.domain.Page;
-import reactor.core.publisher.Mono;
 
 import java.util.Optional;
 
 public interface UserService {
-    Mono<User> register(SignUp signUp);
-    Mono<JwtResponseMessage> login(Login signInForm);
-    Mono<Void> logout();
-    Mono<User> update(Long userId, SignUp update);
-    Mono<String> changePassword(ChangePasswordRequest request);
+    User register(SignUp signUp);
+    JwtResponseMessage login(Login signInForm);
+    void logout();
+    User update(Long userId, SignUp update);
+    String changePassword(ChangePasswordRequest request);
     String delete(Long id);
     Optional<User> findById(Long userId);
     Optional<User> findByEmail(String email);
     Page<UserDto> findAllUsers(int page, int size, String sortBy, String sortOrder);
-    Mono<String> resetPassword(String token, ResetPasswordRequest request);
-    Mono<JwtResponseMessage> refreshToken(String refreshToken);
+    String resetPassword(String token, ResetPasswordRequest request);
+    JwtResponseMessage refreshToken(String refreshToken);
 }

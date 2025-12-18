@@ -6,44 +6,46 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.nicetu.spb.productservice.client.MediaServiceClient;
+import org.nicetu.spb.productservice.exception.wrapper.ProductNotFoundException;
 import org.nicetu.spb.productservice.exception.wrapper.ProductPhotoNotFoundException;
-import org.nicetu.spb.productservice.model.dto.CategoryDto;
 import org.nicetu.spb.productservice.model.dto.ProductDto;
 import org.nicetu.spb.productservice.model.dto.ProductPhotoDto;
-import org.nicetu.spb.productservice.model.entity.Category;
 import org.nicetu.spb.productservice.model.entity.Product;
 import org.nicetu.spb.productservice.model.entity.ProductPhoto;
 import org.nicetu.spb.productservice.repository.ProductPhotoRepository;
 import org.nicetu.spb.productservice.repository.ProductRepository;
 import org.nicetu.spb.productservice.service.impl.ProductPhotoServiceImpl;
+import org.springframework.http.MediaType;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class ProductPhotoServiceImplTest {
 
     @Mock
-    private ProductRepository productRepository;
-
-    @Mock
     private ProductPhotoRepository productPhotoRepository;
 
     @Mock
-    private MediaServiceClient mediaServiceClient;
+    private ProductRepository productRepository;
+
+    @Mock
+    private TransactionalOperator transactionalOperator;
 
     @Mock
     private MultipartFile multipartFile;
@@ -51,154 +53,233 @@ class ProductPhotoServiceImplTest {
     @InjectMocks
     private ProductPhotoServiceImpl productPhotoService;
 
-    private Product product;
-    private ProductPhoto productPhoto;
-    private ProductPhotoDto productPhotoDto;
-    private ProductDto productDto;
-    private Category category;
-    private CategoryDto categoryDto;
+    private ProductPhotoDto testPhotoDto;
+    private ProductPhoto testPhoto;
+    private Product testProduct;
 
     @BeforeEach
-    void setUp() {
-        category = Category.builder()
-                .categoryId(1)
-                .categoryTitle("Electronics")
-                .build();
-
-        categoryDto = CategoryDto.builder()
-                .categoryId(1)
-                .categoryTitle("Electronics")
-                .build();
-
-        product = Product.builder()
+    void setUp() throws IOException {
+        testProduct = Product.builder()
                 .productId(1L)
-                .title("Smartphone")
-                .category(category)
+                .title("Test Product")
+                .quantity(10)
+                .priceUnit(100.0)
                 .build();
 
-        productDto = ProductDto.builder()
+        testPhoto = ProductPhoto.builder()
+                .photoId(1L)
                 .productId(1L)
-                .title("Smartphone")
-                .categoryDto(categoryDto)
+                .photoLink("photo1.jpg")
+                .originalFileName("photo.jpg")
+                .fileSize(1024L)
+                .contentType("image/jpeg")
+                .uploadedAt(LocalDateTime.now())
+                .product(testProduct)
                 .build();
 
-        productPhoto = ProductPhoto.builder()
+        testPhotoDto = ProductPhotoDto.builder()
                 .photoId(1L)
-                .photoLink("photo-key")
-                .product(product)
+                .photoLink("photo1.jpg")
+                .productDto(ProductDto.builder()
+                        .productId(1L)
+                        .title("Test Product")
+                        .build())
                 .build();
 
-        productPhotoDto = ProductPhotoDto.builder()
-                .photoId(1L)
-                .photoLink("photo-key")
-                .productDto(productDto)
-                .build();
+        Path uploadPath = Paths.get("uploads");
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
     }
 
     @Test
-    void findById_WhenPhotoExists_ShouldReturnProductPhotoDto() {
-        when(productPhotoRepository.findById(1L)).thenReturn(Optional.of(productPhoto));
+    void findById_shouldReturnPhotoWhenExists() {
+        when(productPhotoRepository.findById(1L)).thenReturn(Mono.just(testPhoto));
+        when(productRepository.findById(1L)).thenReturn(Mono.just(testProduct));
 
-        ProductPhotoDto result = productPhotoService.findById(1L);
+        Mono<ProductPhotoDto> result = productPhotoService.findById(1L);
 
-        assertNotNull(result);
-        assertEquals(1L, result.getPhotoId());
-        assertEquals("photo-key", result.getPhotoLink());
+        StepVerifier.create(result)
+                .assertNext(photo -> {
+                    assertThat(photo.getPhotoId()).isEqualTo(1L);
+                    assertThat(photo.getPhotoLink()).isEqualTo("photo1.jpg");
+                })
+                .verifyComplete();
+
+        verify(productPhotoRepository).findById(1L);
+        verify(productRepository).findById(1L);
+    }
+
+    @Test
+    void findById_shouldThrowExceptionWhenNotFound() {
+        when(productPhotoRepository.findById(999L)).thenReturn(Mono.empty());
+
+        Mono<ProductPhotoDto> result = productPhotoService.findById(999L);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable ->
+                        throwable instanceof ProductPhotoNotFoundException &&
+                                throwable.getMessage().contains("Photo not found"))
+                .verify();
+
+        verify(productPhotoRepository).findById(999L);
+    }
+
+    @Test
+    void findAllPhotoByProductId_shouldReturnPhotos() {
+        when(productPhotoRepository.findByProductId(1L)).thenReturn(Flux.just(testPhoto));
+        when(productRepository.findById(1L)).thenReturn(Mono.just(testProduct));
+
+        Flux<ProductPhotoDto> result = productPhotoService.findAllPhotoByProductId(1L);
+
+        StepVerifier.create(result)
+                .assertNext(photo -> {
+                    assertThat(photo.getPhotoId()).isEqualTo(1L);
+                    assertThat(photo.getPhotoLink()).isEqualTo("photo1.jpg");
+                })
+                .verifyComplete();
+
+        verify(productPhotoRepository).findByProductId(1L);
+        verify(productRepository).findById(1L);
+    }
+
+    @Test
+    void createPhotoForProduct_shouldSavePhotoSuccessfully() throws IOException {
+        when(multipartFile.getOriginalFilename()).thenReturn("test.jpg");
+        when(multipartFile.getSize()).thenReturn(1024L);
+        when(multipartFile.getContentType()).thenReturn("image/jpeg");
+
+        when(productRepository.findById(1L)).thenReturn(Mono.just(testProduct));
+
+        when(productPhotoRepository.save(any(ProductPhoto.class))).thenReturn(Mono.just(testPhoto));
+        when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> {
+            Mono<?> mono = invocation.getArgument(0);
+            return mono;
+        });
+
+        Mono<ProductPhotoDto> result = productPhotoService.createPhotoForProduct(1L, multipartFile);
+
+        StepVerifier.create(result)
+                .assertNext(photo -> {
+                    assertThat(photo.getPhotoId()).isEqualTo(1L);
+                    assertThat(photo.getPhotoLink()).isEqualTo("photo1.jpg");
+                })
+                .verifyComplete();
+
+        verify(productRepository, times(2)).findById(1L);
+        verify(productPhotoRepository).save(any(ProductPhoto.class));
+    }
+
+    @Test
+    void createPhotoForProduct_shouldThrowExceptionWhenProductNotFound() {
+        when(productRepository.findById(999L)).thenReturn(Mono.empty());
+        when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> {
+            Mono<?> mono = invocation.getArgument(0);
+            return mono;
+        });
+
+        Mono<ProductPhotoDto> result = productPhotoService.createPhotoForProduct(999L, multipartFile);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> {
+                    if (throwable instanceof RuntimeException) {
+                        return throwable.getCause() instanceof ProductNotFoundException &&
+                                throwable.getMessage().contains("Product not found with id: 999");
+                    }
+                    return throwable instanceof ProductNotFoundException &&
+                            throwable.getMessage().contains("Product not found with id: 999");
+                })
+                .verify();
+
+        verify(productRepository).findById(999L);
+        verify(productPhotoRepository, never()).save(any(ProductPhoto.class));
+    }
+
+    @Test
+    void getPhotoContent_shouldReturnPhotoBytes() throws IOException {
+        when(productPhotoRepository.findById(1L)).thenReturn(Mono.just(testPhoto));
+
+        Path testFile = Paths.get("uploads/photo1.jpg");
+        Files.write(testFile, "test image content".getBytes());
+
+        Mono<byte[]> result = productPhotoService.getPhotoContent(1L);
+
+        StepVerifier.create(result)
+                .assertNext(bytes -> {
+                    assertThat(bytes).isNotEmpty();
+                })
+                .verifyComplete();
+
+        Files.deleteIfExists(testFile);
+
         verify(productPhotoRepository).findById(1L);
     }
 
-
     @Test
-    void findById_WhenPhotoNotExists_ShouldThrowException() {
-        when(productPhotoRepository.findById(1L)).thenReturn(Optional.empty());
+    void getPhotoContentType_shouldReturnContentType() {
+        when(productPhotoRepository.findById(1L)).thenReturn(Mono.just(testPhoto));
 
-        assertThrows(ProductPhotoNotFoundException.class, () -> productPhotoService.findById(1L));
+        Mono<String> result = productPhotoService.getPhotoContentType(1L);
+
+        StepVerifier.create(result)
+                .expectNext("image/jpeg")
+                .verifyComplete();
+
+        verify(productPhotoRepository).findById(1L);
     }
 
     @Test
-    void findAllPhotoByProductId_ShouldReturnListOfProductPhotoDtos() {
-        when(productPhotoRepository.findByProductProductId(1L)).thenReturn(Arrays.asList(productPhoto));
+    void getPhotoContentType_shouldReturnDefaultWhenNotFound() {
+        ProductPhoto photoWithoutContentType = ProductPhoto.builder()
+                .photoId(1L)
+                .productId(1L)
+                .photoLink("photo.jpg")
+                .build();
 
-        List<ProductPhotoDto> result = productPhotoService.findAllPhotoByProductId(1L);
+        when(productPhotoRepository.findById(1L)).thenReturn(Mono.just(photoWithoutContentType));
 
-        assertNotNull(result);
-        assertFalse(result.isEmpty());
-        verify(productPhotoRepository).findByProductProductId(1L);
+        Mono<String> result = productPhotoService.getPhotoContentType(1L);
+
+        StepVerifier.create(result)
+                .expectNext(MediaType.IMAGE_JPEG_VALUE)
+                .verifyComplete();
+
+        verify(productPhotoRepository).findById(1L);
     }
 
     @Test
-    void getPhotoContent_ShouldReturnPhotoBytes() {
-        byte[] photoBytes = new byte[]{1, 2, 3};
-        when(productPhotoRepository.findById(1L)).thenReturn(Optional.of(productPhoto));
-        when(mediaServiceClient.downloadPhoto("photo-key")).thenReturn(photoBytes);
+    void deletePhoto_shouldDeleteSuccessfully() {
+        when(productPhotoRepository.findById(1L)).thenReturn(Mono.just(testPhoto));
+        when(productPhotoRepository.delete(any(ProductPhoto.class))).thenReturn(Mono.empty());
+        when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> {
+            Mono<?> mono = invocation.getArgument(0);
+            return mono;
+        });
 
-        byte[] result = productPhotoService.getPhotoContent(1L);
+        Mono<Void> result = productPhotoService.deletePhoto(1L);
 
-        assertNotNull(result);
-        assertEquals(photoBytes, result);
-        verify(mediaServiceClient).downloadPhoto("photo-key");
+        StepVerifier.create(result)
+                .verifyComplete();
+
+        verify(productPhotoRepository).findById(1L);
+        verify(productPhotoRepository).delete(any(ProductPhoto.class));
     }
 
     @Test
-    void createPhoto_ShouldReturnProductPhotoDto() {
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productPhotoRepository.save(any(ProductPhoto.class))).thenReturn(productPhoto);
+    void deletePhotosForProduct_shouldDeleteAllPhotos() {
+        when(productPhotoRepository.findByProductId(1L)).thenReturn(Flux.just(testPhoto));
+        when(productPhotoRepository.deleteByProductId(1L)).thenReturn(Mono.just(1));
+        when(transactionalOperator.transactional(any(Mono.class))).thenAnswer(invocation -> {
+            Mono<?> mono = invocation.getArgument(0);
+            return mono;
+        });
 
-        ProductPhotoDto result = productPhotoService.createPhoto(productPhotoDto);
+        Mono<Void> result = productPhotoService.deletePhotosForProduct(1L);
 
-        assertNotNull(result);
-        verify(productPhotoRepository).save(any(ProductPhoto.class));
-    }
+        StepVerifier.create(result)
+                .verifyComplete();
 
-    @Test
-    void createPhotoForProduct_ShouldReturnProductPhotoDto() {
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productPhotoRepository.save(any(ProductPhoto.class))).thenReturn(productPhoto);
-
-        ProductPhotoDto result = productPhotoService.createPhotoForProduct(1L, productPhotoDto);
-
-        assertNotNull(result);
-        verify(productPhotoRepository).save(any(ProductPhoto.class));
-    }
-
-    @Test
-    void createPhotoForProductWithFile_ShouldReturnProductPhotoDto() throws IOException {
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(mediaServiceClient.uploadPhoto(multipartFile)).thenReturn("new-photo-key");
-        when(productPhotoRepository.save(any(ProductPhoto.class))).thenReturn(productPhoto);
-
-        ProductPhotoDto result = productPhotoService.createPhotoForProduct(1L, multipartFile);
-
-        assertNotNull(result);
-        verify(mediaServiceClient).uploadPhoto(multipartFile);
-        verify(productPhotoRepository).save(any(ProductPhoto.class));
-    }
-
-    @Test
-    void updatePhoto_WhenPhotoExists_ShouldReturnUpdatedProductPhotoDto() {
-        when(productPhotoRepository.findById(1L)).thenReturn(Optional.of(productPhoto));
-        when(productPhotoRepository.save(any(ProductPhoto.class))).thenReturn(productPhoto);
-
-        ProductPhotoDto result = productPhotoService.updatePhoto(1L, productPhotoDto);
-
-        assertNotNull(result);
-        verify(productPhotoRepository).save(any(ProductPhoto.class));
-    }
-
-    @Test
-    void deletePhoto_WhenPhotoExists_ShouldCallRepositoryDelete() {
-        when(productPhotoRepository.existsById(1L)).thenReturn(true);
-        doNothing().when(productPhotoRepository).deleteById(1L);
-
-        productPhotoService.deletePhoto(1L);
-
-        verify(productPhotoRepository).deleteById(1L);
-    }
-
-    @Test
-    void deletePhoto_WhenPhotoNotExists_ShouldThrowException() {
-        when(productPhotoRepository.existsById(1L)).thenReturn(false);
-
-        assertThrows(ProductPhotoNotFoundException.class, () -> productPhotoService.deletePhoto(1L));
+        verify(productPhotoRepository).findByProductId(1L);
+        verify(productPhotoRepository).deleteByProductId(1L);
     }
 }

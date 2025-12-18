@@ -1,43 +1,43 @@
 package service;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.modelmapper.ModelMapper;
 import org.nicetu.spb.orderservice.exception.wrapper.CartNotFoundException;
 import org.nicetu.spb.orderservice.model.dto.order.CartDto;
 import org.nicetu.spb.orderservice.model.dto.user.UserDto;
 import org.nicetu.spb.orderservice.model.entity.Cart;
+import org.nicetu.spb.orderservice.model.entity.Order;
 import org.nicetu.spb.orderservice.repository.CartRepository;
 import org.nicetu.spb.orderservice.repository.OrderRepository;
+import org.nicetu.spb.orderservice.security.JwtTokenFilter;
 import org.nicetu.spb.orderservice.service.CallAPI;
 import org.nicetu.spb.orderservice.service.impl.CartServiceImpl;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.util.Collections;
+import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceImplTest {
@@ -49,9 +49,6 @@ class CartServiceImplTest {
     private OrderRepository orderRepository;
 
     @Mock
-    private ModelMapper modelMapper;
-
-    @Mock
     private CallAPI callAPI;
 
     @InjectMocks
@@ -60,181 +57,225 @@ class CartServiceImplTest {
     private Cart testCart;
     private CartDto testCartDto;
     private UserDto testUserDto;
+    private List<Order> testOrders;
+
+    private MockedStatic<JwtTokenFilter> jwtTokenFilterMockedStatic;
 
     @BeforeEach
     void setUp() {
         testCart = Cart.builder()
                 .cartId(1)
-                .userId(1L)
-                .orders(Collections.emptySet())
+                .userId(100L)
+                .build();
+
+        testUserDto = UserDto.builder()
+                .id(100L)
+                .fullname("John Doe")
+                .email("john@example.com")
                 .build();
 
         testCartDto = CartDto.builder()
                 .cartId(1)
-                .userId(1L)
-                .orderDtos(Collections.emptySet())
-                .userDto(UserDto.builder().id(1L).build())
+                .userId(100L)
+                .userDto(testUserDto)
+                .orderDtos(new HashSet<>())
                 .build();
 
-        testUserDto = UserDto.builder()
-                .id(1L)
-                .fullname("Test User")
-                .email("test@example.com")
-                .build();
+        testOrders = List.of(
+                Order.builder()
+                        .orderId(1)
+                        .orderDate(LocalDateTime.now())
+                        .orderDesc("Test order 1")
+                        .orderFee(100.0)
+                        .status("NEW")
+                        .cartId(1)
+                        .build()
+        );
+
+        jwtTokenFilterMockedStatic = Mockito.mockStatic(JwtTokenFilter.class);
+        jwtTokenFilterMockedStatic.when(JwtTokenFilter::getTokenFromRequest)
+                .thenReturn("test-token");
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (jwtTokenFilterMockedStatic != null) {
+            jwtTokenFilterMockedStatic.close();
+        }
     }
 
     @Test
-    void findAll_ShouldReturnListOfCartDtos() {
-        when(cartRepository.findAll()).thenReturn(List.of(testCart));
-        when(callAPI.receiverUserDto(anyLong(), nullable(String.class)))
+    void findAll_ShouldReturnPageOfCarts() {
+        int page = 0;
+        int size = 10;
+        String sortBy = "cartId";
+        String sortOrder = "asc";
+
+        when(cartRepository.count()).thenReturn(Mono.just(1L));
+        when(cartRepository.findAllWithPagination(anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn(Flux.just(testCart));
+        when(orderRepository.findAllByCartId(anyInt()))
+                .thenReturn(Flux.fromIterable(testOrders));
+        when(callAPI.receiverUserDto(anyLong(), anyString()))
                 .thenReturn(Mono.just(testUserDto));
 
-        Mono<List<CartDto>> result = cartService.findAll();
-
-        StepVerifier.create(result)
-                .expectNextMatches(carts -> {
-                    assertEquals(1, carts.size());
-                    assertEquals(1, carts.get(0).getCartId());
-                    return true;
-                })
+        StepVerifier.create(cartService.findAll(page, size, sortBy, sortOrder))
+                .expectNextMatches(pageResult -> pageResult.getContent().size() == 1)
                 .verifyComplete();
 
-        verify(cartRepository).findAll();
-        verify(callAPI).receiverUserDto(1L, null);
+        verify(cartRepository).count();
+        verify(cartRepository).findAllWithPagination(sortBy, "ASC", size, 0);
+        verify(orderRepository).findAllByCartId(1);
+        verify(callAPI).receiverUserDto(100L, "test-token");
+        jwtTokenFilterMockedStatic.verify(JwtTokenFilter::getTokenFromRequest, atLeastOnce());
     }
 
     @Test
-    void findAll_WithPaging_ShouldReturnPageOfCartDtos() {
-        Pageable pageable = PageRequest.of(0, 10, Sort.by("cartId"));
-        Page<Cart> cartPage = new PageImpl<>(List.of(testCart));
+    void findAll_ShouldReturnEmptyPage_WhenNoCarts() {
+        when(cartRepository.count()).thenReturn(Mono.just(0L));
 
-        when(cartRepository.findAll(pageable)).thenReturn(cartPage);
-        when(callAPI.receiverUserDto(anyLong(), nullable(String.class)))
-                .thenReturn(Mono.just(testUserDto));
-
-        Mono<Page<CartDto>> result = cartService.findAll(0, 10, "cartId", "asc");
-
-        StepVerifier.create(result)
-                .expectNextMatches(page -> {
-                    assertEquals(1, page.getContent().size());
-                    assertEquals(1, page.getContent().get(0).getCartId());
-                    return true;
-                })
+        StepVerifier.create(cartService.findAll(0, 10, "cartId", "asc"))
+                .expectNextMatches(Page::isEmpty)
                 .verifyComplete();
 
-        verify(cartRepository).findAll(pageable);
-        verify(callAPI).receiverUserDto(1L, null);
+        verify(cartRepository).count();
+        verifyNoInteractions(orderRepository, callAPI);
     }
 
     @Test
-    void findById_WhenCartExists_ShouldReturnCartDto() {
-        when(cartRepository.findById(1)).thenReturn(Optional.of(testCart));
-        when(callAPI.receiverUserDto(anyLong(), nullable(String.class)))
-                .thenReturn(Mono.just(testUserDto));
+    void findById_ShouldReturnCart_WhenExists() {
+        when(cartRepository.findById(1)).thenReturn(Mono.just(testCart));
+        when(orderRepository.findAllByCartId(1)).thenReturn(Flux.fromIterable(testOrders));
+        when(callAPI.receiverUserDto(100L, "test-token")).thenReturn(Mono.just(testUserDto));
 
-        Mono<CartDto> result = cartService.findById(1);
-
-        StepVerifier.create(result)
-                .expectNextMatches(cartDto -> {
-                    assertEquals(1, cartDto.getCartId());
-                    assertEquals(1L, cartDto.getUserId());
-                    return true;
-                })
+        StepVerifier.create(cartService.findById(1))
+                .expectNextMatches(cartDto -> cartDto.getCartId() == 1)
                 .verifyComplete();
 
         verify(cartRepository).findById(1);
-        verify(callAPI).receiverUserDto(1L, null);
+        verify(orderRepository).findAllByCartId(1);
+        verify(callAPI).receiverUserDto(100L, "test-token");
     }
 
     @Test
-    void findById_WhenCartNotFound_ShouldThrowException() {
-        when(cartRepository.findById(1)).thenReturn(Optional.empty());
+    void findById_ShouldThrowException_WhenCartNotFound() {
+        when(cartRepository.findById(1)).thenReturn(Mono.empty());
 
         StepVerifier.create(cartService.findById(1))
                 .expectError(CartNotFoundException.class)
                 .verify();
 
         verify(cartRepository).findById(1);
-        verify(callAPI, never()).receiverUserDto(anyLong(), anyString());
+        verifyNoInteractions(orderRepository, callAPI);
     }
 
     @Test
-    void save_ShouldSaveAndReturnCartDto() {
-        when(cartRepository.save(any(Cart.class))).thenReturn(testCart);
-        when(modelMapper.map(any(CartDto.class), eq(Cart.class))).thenReturn(testCart);
-        when(modelMapper.map(any(Cart.class), eq(CartDto.class))).thenReturn(testCartDto);
+    void findById_ShouldReturnCartWithoutUserInfo_WhenUserServiceFails() {
+        when(cartRepository.findById(1)).thenReturn(Mono.just(testCart));
+        when(orderRepository.findAllByCartId(1)).thenReturn(Flux.fromIterable(testOrders));
+        when(callAPI.receiverUserDto(100L, "test-token"))
+                .thenReturn(Mono.error(new RuntimeException("Service unavailable")));
 
-        Mono<CartDto> result = cartService.save(testCartDto);
+        StepVerifier.create(cartService.findById(1))
+                .expectNextMatches(cartDto -> cartDto.getCartId() == 1)
+                .verifyComplete();
 
-        StepVerifier.create(result)
-                .expectNext(testCartDto)
+        verify(callAPI).receiverUserDto(100L, "test-token");
+    }
+
+    @Test
+    void save_ShouldSaveAndReturnCart() {
+        when(cartRepository.save(any(Cart.class))).thenReturn(Mono.just(testCart));
+        when(callAPI.receiverUserDto(100L, "test-token")).thenReturn(Mono.just(testUserDto));
+
+        StepVerifier.create(cartService.save(testCartDto))
+                .expectNextMatches(cartDto -> cartDto.getCartId() == 1)
                 .verifyComplete();
 
         verify(cartRepository).save(any(Cart.class));
-        verify(callAPI, never()).receiverUserDto(anyLong(), anyString());
+        verify(callAPI).receiverUserDto(100L, "test-token");
     }
 
     @Test
-    void update_ShouldUpdateAndReturnCartDto() {
-        when(cartRepository.save(any(Cart.class))).thenReturn(testCart);
+    void update_ShouldUpdateAndReturnCart() {
+        when(cartRepository.save(any(Cart.class))).thenReturn(Mono.just(testCart));
+        when(callAPI.receiverUserDto(100L, "test-token")).thenReturn(Mono.just(testUserDto));
 
-        Mono<CartDto> result = cartService.update(testCartDto);
-
-        StepVerifier.create(result)
-                .expectNextMatches(cartDto -> cartDto != null)
+        StepVerifier.create(cartService.update(testCartDto))
+                .expectNextMatches(cartDto -> cartDto.getCartId() == 1)
                 .verifyComplete();
 
         verify(cartRepository).save(any(Cart.class));
-        verify(callAPI, never()).receiverUserDto(anyLong(), anyString());
+        verify(callAPI).receiverUserDto(100L, "test-token");
     }
 
     @Test
-    void update_WithCartId_ShouldUpdateAndReturnCartDto() {
-        when(cartRepository.findById(1)).thenReturn(Optional.of(testCart));
-        when(cartRepository.save(any(Cart.class))).thenReturn(testCart);
-        when(callAPI.receiverUserDto(anyLong(), nullable(String.class)))
-                .thenReturn(Mono.just(testUserDto));
+    void updateWithId_ShouldUpdateExistingCart() {
+        Cart updatedCart = Cart.builder()
+                .cartId(1)
+                .userId(200L)
+                .build();
 
-        Mono<CartDto> result = cartService.update(1, testCartDto);
+        UserDto updatedUserDto = UserDto.builder()
+                .id(200L)
+                .fullname("Jane Doe")
+                .email("jane@example.com")
+                .build();
 
-        StepVerifier.create(result)
-                .expectNextMatches(cartDto -> cartDto != null)
+        when(cartRepository.findById(1)).thenReturn(Mono.just(testCart));
+        when(cartRepository.save(any(Cart.class))).thenReturn(Mono.just(updatedCart));
+        when(callAPI.receiverUserDto(200L, "test-token")).thenReturn(Mono.just(updatedUserDto));
+
+        CartDto updateDto = CartDto.builder()
+                .cartId(1)
+                .userId(200L)
+                .build();
+
+        StepVerifier.create(cartService.update(1, updateDto))
+                .expectNextMatches(cartDto -> cartDto.getCartId() == 1)
                 .verifyComplete();
 
         verify(cartRepository).findById(1);
         verify(cartRepository).save(any(Cart.class));
-        verify(callAPI).receiverUserDto(1L, null);
+        verify(callAPI).receiverUserDto(200L, "test-token");
     }
 
     @Test
-    void deleteById_ShouldDeleteCart() {
-        when(cartRepository.findById(1)).thenReturn(Optional.of(testCart));
-        doNothing().when(orderRepository).deleteAllByCart(testCart);
-        doNothing().when(cartRepository).deleteById(1);
+    void updateWithId_ShouldThrowException_WhenCartNotFound() {
+        when(cartRepository.findById(1)).thenReturn(Mono.empty());
 
-        Mono<Void> result = cartService.deleteById(1);
-
-        StepVerifier.create(result)
-                .verifyComplete();
+        StepVerifier.create(cartService.update(1, testCartDto))
+                .expectError(CartNotFoundException.class)
+                .verify();
 
         verify(cartRepository).findById(1);
-        verify(orderRepository).deleteAllByCart(testCart);
+        verifyNoMoreInteractions(cartRepository);
+        verifyNoInteractions(callAPI);
+    }
+
+    @Test
+    void deleteById_ShouldDeleteCartAndOrders() {
+        when(orderRepository.deleteAllByCartId(1)).thenReturn(Mono.empty());
+        when(cartRepository.deleteById(1)).thenReturn(Mono.empty());
+
+        StepVerifier.create(cartService.deleteById(1))
+                .verifyComplete();
+
+        verify(orderRepository).deleteAllByCartId(1);
         verify(cartRepository).deleteById(1);
-        verify(callAPI, never()).receiverUserDto(anyLong(), anyString());
     }
 
     @Test
-    void deleteById_WhenCartNotFound_ShouldComplete() {
-        when(cartRepository.findById(1)).thenReturn(Optional.empty());
+    void deleteById_ShouldComplete_WhenCartDeletionFails() {
+        when(orderRepository.deleteAllByCartId(1)).thenReturn(Mono.empty());
+        when(cartRepository.deleteById(1))
+                .thenReturn(Mono.error(new RuntimeException("Cart deletion failed")));
 
-        Mono<Void> result = cartService.deleteById(1);
+        StepVerifier.create(cartService.deleteById(1))
+                .expectError(RuntimeException.class)
+                .verify();
 
-        StepVerifier.create(result)
-                .verifyComplete();
-
-        verify(cartRepository).findById(1);
-        verify(orderRepository, never()).deleteAllByCart(any());
-        verify(cartRepository, never()).deleteById(any());
-        verify(callAPI, never()).receiverUserDto(anyLong(), anyString());
+        verify(orderRepository).deleteAllByCartId(1);
+        verify(cartRepository).deleteById(1);
     }
 }

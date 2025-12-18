@@ -6,6 +6,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nicetu.spb.userservice.controller.UserRoleController;
+import org.nicetu.spb.userservice.http.HeaderGenerator;
 import org.nicetu.spb.userservice.service.RoleService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,9 @@ class UserRoleControllerTest {
 
     @Mock
     private RoleService roleService;
+
+    @Mock
+    private HeaderGenerator headerGenerator;
 
     @InjectMocks
     private UserRoleController userRoleController;

@@ -3,6 +3,8 @@ package org.nicetu.spb.mediaservice.controller;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,10 +19,10 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+
 import java.io.IOException;
 import java.net.URI;
 
-import static org.nicetu.spb.mediaservice.constant.CloudStorageConstant.*;
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 
 @RestController
@@ -29,26 +31,41 @@ import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 @ApiResponses(@ApiResponse(responseCode = "200", useReturnTypeSchema = true))
 public class PhotoController {
 
-    private final S3Client s3Client;
+    @Value("${aws.access.key.id}")
+    private String accessKeyId;
 
-    public PhotoController() {
-        AwsCredentials credentials = AwsBasicCredentials.create(KEY_ID, SECRET_KEY);
+    @Value("${aws.secret.access.key}")
+    private String secretAccessKey;
+
+    @Value("${aws.s3.region}")
+    private String region;
+
+    @Value("${aws.s3.endpoint}")
+    private String s3Endpoint;
+
+    @Value("${aws.s3.bucket}")
+    private String bucket;
+
+    private S3Client s3Client;
+
+    @PostConstruct
+    public void init() {
+        AwsCredentials credentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 
         s3Client = S3Client.builder()
                 .httpClient(ApacheHttpClient.create())
-                .region(Region.of(REGION))
-                .endpointOverride(URI.create(S3_ENDPOINT))
+                .region(Region.of(region))
+                .endpointOverride(URI.create(s3Endpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(credentials))
                 .build();
     }
-
 
     @PutMapping(consumes = MULTIPART_FORM_DATA_VALUE)
     public String uploadPhoto(@RequestParam MultipartFile photo) throws IOException {
 
         String key = "photos/" + photo.getOriginalFilename();
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(BUCKET)
+                .bucket(bucket)
                 .key(key)
                 .contentType(photo.getContentType())
                 .build();
@@ -62,7 +79,7 @@ public class PhotoController {
     public ResponseEntity<byte[]> downloadPhoto(@RequestParam String key) throws IOException {
 
         GetObjectRequest objectRequest = GetObjectRequest.builder()
-                .bucket(BUCKET)
+                .bucket(bucket)
                 .key(key)
                 .build();
 
@@ -77,6 +94,4 @@ public class PhotoController {
                 .headers(headers)
                 .body(data);
     }
-
-
 }

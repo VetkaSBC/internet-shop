@@ -2,7 +2,6 @@ package org.nicetu.spb.userservice.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-
 import org.nicetu.spb.userservice.model.dto.request.Login;
 import org.nicetu.spb.userservice.model.dto.request.ResetPasswordRequest;
 import org.nicetu.spb.userservice.model.dto.request.SignUp;
@@ -18,14 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -50,67 +42,72 @@ public class UserAuthController {
     }
 
     @PostMapping({"/signup", "/register"})
-    public Mono<ResponseEntity<ResponseMessage>> register(@Valid @RequestBody SignUp signUp) {
-        return userService.register(signUp)
-                .map(user -> ResponseEntity.ok(new ResponseMessage("Create user: " + signUp.getEmail() + " successfully.")))
-                .onErrorResume(error -> Mono.just(
-                        ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                                .body(new ResponseMessage(error.getMessage()))
-                ));
+    public ResponseEntity<ResponseMessage> register(@Valid @RequestBody SignUp signUp) {
+        try {
+            userService.register(signUp);
+            return ResponseEntity.ok(new ResponseMessage("Create user: " + signUp.getEmail() + " successfully."));
+        } catch (Exception error) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseMessage(error.getMessage()));
+        }
     }
 
     @PostMapping({"/signin", "/login"})
-    public Mono<ResponseEntity<JwtResponseMessage>> login(@Valid @RequestBody Login signInForm) {
-        return userService.login(signInForm)
-                .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    log.error("Ошибка входа: {}", error.getMessage());
-                    JwtResponseMessage errorjwtResponseMessage = new JwtResponseMessage(
-                            null,
-                            null,
-                            new InformationMessage()
-                    );
-                    return Mono.just(new ResponseEntity<>(errorjwtResponseMessage, HttpStatus.INTERNAL_SERVER_ERROR));
-                });
+    public ResponseEntity<JwtResponseMessage> login(@Valid @RequestBody Login signInForm) {
+        try {
+            JwtResponseMessage response = userService.login(signInForm);
+            return ResponseEntity.ok(response);
+        } catch (Exception error) {
+            log.error("Ошибка входа: {}", error.getMessage());
+            JwtResponseMessage errorResponse = new JwtResponseMessage(
+                    null,
+                    null,
+                    new InformationMessage()
+            );
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated() and hasAuthority('USER')")
-    public Mono<ResponseEntity<String>> logout() {
+    public ResponseEntity<String> logout() {
         log.info("Logout endpoint called");
-        return userService.logout()
-                .then(Mono.just(new ResponseEntity<>("Logged out successfully.", HttpStatus.OK)))
-                .onErrorResume(error -> {
-                    log.error("Logout failed", error);
-                    return Mono.just(new ResponseEntity<>("Logout failed.", HttpStatus.BAD_REQUEST));
-                });
+        try {
+            userService.logout();
+            return ResponseEntity.ok("Logged out successfully.");
+        } catch (Exception error) {
+            log.error("Logout failed", error);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Logout failed.");
+        }
     }
 
     @PostMapping("/reset-password")
-    public Mono<ResponseEntity<ResponseMessage>> resetPassword(@RequestParam("token") String token,
-                                                               @Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
-        return userService.resetPassword(token, resetPasswordRequest)
-                .map(message -> ResponseEntity.ok(new ResponseMessage(message)))
-                .onErrorResume(error -> {
-                    log.error("Password reset failed: {}", error.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                            .body(new ResponseMessage(error.getMessage())));
-                });
+    public ResponseEntity<ResponseMessage> resetPassword(@RequestParam("token") String token,
+                                                         @Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
+        try {
+            String message = userService.resetPassword(token, resetPasswordRequest);
+            return ResponseEntity.ok(new ResponseMessage(message));
+        } catch (Exception error) {
+            log.error("Password reset failed: {}", error.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseMessage(error.getMessage()));
+        }
     }
 
     @PostMapping({"/refresh", "/refresh-token"})
-    public Mono<ResponseEntity<JwtResponseMessage>> refresh(@RequestHeader("Refresh-Token") String refreshToken) {
-        return userService.refreshToken(refreshToken)
-                .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    log.error("Token refresh failed: {}", error.getMessage());
-                    JwtResponseMessage errorResponse = new JwtResponseMessage(
-                            null,
-                            null,
-                            new InformationMessage()
-                    );
-                    return Mono.just(new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED));
-                });
+    public ResponseEntity<JwtResponseMessage> refresh(@RequestHeader("Refresh-Token") String refreshToken) {
+        try {
+            JwtResponseMessage response = userService.refreshToken(refreshToken);
+            return ResponseEntity.ok(response);
+        } catch (Exception error) {
+            log.error("Token refresh failed: {}", error.getMessage());
+            JwtResponseMessage errorResponse = new JwtResponseMessage(
+                    null,
+                    null,
+                    new InformationMessage()
+            );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
     }
 
     @GetMapping({"/validateToken", "/validate-token"})
@@ -130,7 +127,7 @@ public class UserAuthController {
 
     @GetMapping({"/hasAuthority", "/authorization"})
     public ResponseEntity<?> getAuthority(@RequestHeader(name = "Authorization") String authorizationToken,
-                                          String requiredRole) {
+                                          @RequestParam String requiredRole) {
         List<String> authorities = authorityTokenUtil.checkPermission(authorizationToken);
 
         if (authorities.contains(requiredRole)) {

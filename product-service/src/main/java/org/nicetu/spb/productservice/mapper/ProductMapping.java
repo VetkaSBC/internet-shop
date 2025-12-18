@@ -1,41 +1,58 @@
 package org.nicetu.spb.productservice.mapper;
 
-import org.nicetu.spb.productservice.model.dto.CategoryDto;
 import org.nicetu.spb.productservice.model.dto.ProductDto;
-import org.nicetu.spb.productservice.model.entity.Category;
 import org.nicetu.spb.productservice.model.entity.Product;
+import org.springframework.stereotype.Component;
 
-public interface ProductMapping {
-    static ProductDto mapToDto(Product product) {
+import java.util.stream.Collectors;
+
+@Component
+public class ProductMapping {
+
+    public static ProductDto mapToDto(Product product) {
+        if (product == null) return null;
+
         return ProductDto.builder()
                 .productId(product.getProductId())
                 .title(product.getTitle())
                 .description(product.getDescription())
                 .quantity(product.getQuantity())
                 .quantityStatus(product.getQuantityStatus())
-                .priceUnit(product.getPriceUnit()) // Добавлено
+                .priceUnit(product.getPriceUnit())
                 .discount(product.getDiscount())
-                .categoryDto(
-                        CategoryDto.builder()
-                                .categoryId(product.getCategory().getCategoryId())
-                                .categoryTitle(product.getCategory().getCategoryTitle())
-                                .build())
+                .categories(product.getCategories() != null ?
+                        product.getCategories().stream()
+                                .map(CategoryMapping::mapToDto)
+                                .collect(Collectors.toSet()) : null)
+                .productPhotos(product.getProductPhotos() != null ?
+                        product.getProductPhotos().stream()
+                                .map(ProductPhotoMapping::mapToDto)
+                                .collect(Collectors.toList()) : null)
                 .build();
     }
 
-    static Product mapToEntity(ProductDto productDto) {
-        return Product.builder()
+    public static Product mapToEntity(ProductDto productDto) {
+        if (productDto == null) return null;
+
+        Product product = Product.builder()
                 .productId(productDto.getProductId())
                 .title(productDto.getTitle())
                 .description(productDto.getDescription())
                 .quantity(productDto.getQuantity())
-                .priceUnit(productDto.getPriceUnit()) // Добавлено
+                .priceUnit(productDto.getPriceUnit())
                 .discount(productDto.getDiscount())
-                .category(
-                        Category.builder()
-                                .categoryId(productDto.getCategoryDto().getCategoryId())
-                                .categoryTitle(productDto.getCategoryDto().getCategoryTitle())
-                                .build())
                 .build();
+
+        product.calculateQuantityStatus();
+
+        if (productDto.getCategories() != null) {
+            product.setCategories(
+                    productDto.getCategories().stream()
+                            .map(CategoryMapping::mapToEntity)
+                            .collect(Collectors.toSet())
+            );
+        }
+
+        return product;
     }
 }

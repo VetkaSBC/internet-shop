@@ -1,26 +1,26 @@
 package org.nicetu.spb.productservice.service;
 
 import org.nicetu.spb.productservice.model.dto.ProductDto;
-import reactor.core.publisher.Flux;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
+import reactor.core.publisher.Mono;
 
 public interface ProductService {
-    Flux<List<ProductDto>> findAll();
 
-    ProductDto findById(final Long productId);
+    Mono<Page<ProductDto>> findAll(int page, int size);
 
-    ProductDto save(final ProductDto productDto);
+    Mono<ProductDto> findById(final Long productId);
 
-    ProductDto update(final ProductDto productDto);
+    Mono<ProductDto> save(final ProductDto productDto);
 
-    ProductDto update(final Long productId, final ProductDto productDto);
+    Mono<ProductDto> update(final ProductDto productDto);
 
-    void deleteById(final Long productId);
+    Mono<ProductDto> update(final Long productId, final ProductDto productDto);
 
-    ProductDto releaseProduct(Long productId, Integer quantity);
+    Mono<Void> deleteById(final Long productId);
 
-    boolean isProductAvailable(Long productId, Integer quantity);
+    Mono<ProductDto> releaseProduct(Long productId, Integer quantity);
 
-    ProductDto reserveProduct(Long productId, Integer quantity);
+    Mono<Boolean> isProductAvailable(Long productId, Integer quantity);
+
+    Mono<ProductDto> reserveProduct(Long productId, Integer quantity);
 }

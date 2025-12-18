@@ -12,6 +12,7 @@ import org.nicetu.spb.userservice.model.dto.request.ResetPasswordRequest;
 import org.nicetu.spb.userservice.model.dto.request.SignUp;
 import org.nicetu.spb.userservice.model.dto.response.InformationMessage;
 import org.nicetu.spb.userservice.model.dto.response.JwtResponseMessage;
+import org.nicetu.spb.userservice.model.dto.response.ResponseMessage;
 import org.nicetu.spb.userservice.model.dto.response.TokenValidationResponse;
 import org.nicetu.spb.userservice.model.entity.User;
 import org.nicetu.spb.userservice.security.validate.AuthorityTokenUtil;
@@ -19,8 +20,6 @@ import org.nicetu.spb.userservice.security.validate.TokenValidate;
 import org.nicetu.spb.userservice.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
 
 import java.util.List;
 
@@ -80,84 +79,61 @@ class UserAuthControllerTest {
 
     @Test
     void register_Success() {
-        when(userService.register(any(SignUp.class))).thenReturn(Mono.just(testUser));
+        when(userService.register(any(SignUp.class))).thenReturn(testUser);
 
-        StepVerifier.create(userAuthController.register(testSignUp))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.OK &&
-                                response.getBody().getMessage().contains("successfully")
-                )
-                .verifyComplete();
+        ResponseEntity<ResponseMessage> response = userAuthController.register(testSignUp);
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().getMessage().contains("successfully"));
         verify(userService).register(any(SignUp.class));
     }
 
     @Test
     void register_Failure() {
-        when(userService.register(any(SignUp.class))).thenReturn(Mono.error(new RuntimeException("Registration failed")));
+        when(userService.register(any(SignUp.class))).thenThrow(new RuntimeException("Registration failed"));
 
-        StepVerifier.create(userAuthController.register(testSignUp))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.BAD_REQUEST
-                )
-                .verifyComplete();
+        ResponseEntity<ResponseMessage> response = userAuthController.register(testSignUp);
 
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         verify(userService).register(any(SignUp.class));
     }
 
     @Test
     void login_Success() {
-        when(userService.login(any(Login.class))).thenReturn(Mono.just(testJwtResponse));
+        when(userService.login(any(Login.class))).thenReturn(testJwtResponse);
 
-        StepVerifier.create(userAuthController.login(testLogin))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.OK &&
-                                response.getBody().equals(testJwtResponse)
-                )
-                .verifyComplete();
+        ResponseEntity<JwtResponseMessage> response = userAuthController.login(testLogin);
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(testJwtResponse, response.getBody());
         verify(userService).login(any(Login.class));
     }
 
     @Test
     void login_Failure() {
-        when(userService.login(any(Login.class))).thenReturn(Mono.error(new RuntimeException("Login failed")));
+        when(userService.login(any(Login.class))).thenThrow(new RuntimeException("Login failed"));
 
-        StepVerifier.create(userAuthController.login(testLogin))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.INTERNAL_SERVER_ERROR
-                )
-                .verifyComplete();
+        ResponseEntity<JwtResponseMessage> response = userAuthController.login(testLogin);
 
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         verify(userService).login(any(Login.class));
     }
 
     @Test
     void logout_Success() {
-        when(userService.logout()).thenReturn(Mono.empty());
+        ResponseEntity<String> response = userAuthController.logout();
 
-        StepVerifier.create(userAuthController.logout())
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.OK &&
-                                response.getBody().equals("Logged out successfully.")
-                )
-                .verifyComplete();
-
-        verify(userService).logout();
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Logged out successfully.", response.getBody());
     }
 
     @Test
     void logout_Failure() {
-        when(userService.logout()).thenReturn(Mono.error(new RuntimeException("Logout failed")));
+        // В блокирующей версии logout() не бросает исключения, просто очищает контекст
+        ResponseEntity<String> response = userAuthController.logout();
 
-        StepVerifier.create(userAuthController.logout())
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.BAD_REQUEST &&
-                                response.getBody().equals("Logout failed.")
-                )
-                .verifyComplete();
-
-        verify(userService).logout();
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Logged out successfully.", response.getBody());
     }
 
     @Test
@@ -165,14 +141,11 @@ class UserAuthControllerTest {
         String token = "resetToken";
         ResetPasswordRequest request = new ResetPasswordRequest();
         when(userService.resetPassword(eq(token), any(ResetPasswordRequest.class)))
-                .thenReturn(Mono.just("Password reset successful"));
+                .thenReturn("Password reset successful");
 
-        StepVerifier.create(userAuthController.resetPassword(token, request))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.OK
-                )
-                .verifyComplete();
+        ResponseEntity<ResponseMessage> response = userAuthController.resetPassword(token, request);
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(userService).resetPassword(eq(token), any(ResetPasswordRequest.class));
     }
 
@@ -181,43 +154,34 @@ class UserAuthControllerTest {
         String token = "resetToken";
         ResetPasswordRequest request = new ResetPasswordRequest();
         when(userService.resetPassword(eq(token), any(ResetPasswordRequest.class)))
-                .thenReturn(Mono.error(new RuntimeException("Reset failed")));
+                .thenThrow(new RuntimeException("Reset failed"));
 
-        StepVerifier.create(userAuthController.resetPassword(token, request))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.BAD_REQUEST
-                )
-                .verifyComplete();
+        ResponseEntity<ResponseMessage> response = userAuthController.resetPassword(token, request);
 
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         verify(userService).resetPassword(eq(token), any(ResetPasswordRequest.class));
     }
 
     @Test
     void refreshToken_Success() {
         String refreshToken = "refreshToken";
-        when(userService.refreshToken(refreshToken)).thenReturn(Mono.just(testJwtResponse));
+        when(userService.refreshToken(refreshToken)).thenReturn(testJwtResponse);
 
-        StepVerifier.create(userAuthController.refresh(refreshToken))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.OK &&
-                                response.getBody().equals(testJwtResponse)
-                )
-                .verifyComplete();
+        ResponseEntity<JwtResponseMessage> response = userAuthController.refresh(refreshToken);
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(testJwtResponse, response.getBody());
         verify(userService).refreshToken(refreshToken);
     }
 
     @Test
     void refreshToken_Failure() {
         String refreshToken = "refreshToken";
-        when(userService.refreshToken(refreshToken)).thenReturn(Mono.error(new RuntimeException("Refresh failed")));
+        when(userService.refreshToken(refreshToken)).thenThrow(new RuntimeException("Refresh failed"));
 
-        StepVerifier.create(userAuthController.refresh(refreshToken))
-                .expectNextMatches(response ->
-                        response.getStatusCode() == HttpStatus.UNAUTHORIZED
-                )
-                .verifyComplete();
+        ResponseEntity<JwtResponseMessage> response = userAuthController.refresh(refreshToken);
 
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         verify(userService).refreshToken(refreshToken);
     }
 

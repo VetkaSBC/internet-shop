@@ -1,71 +1,48 @@
 package org.nicetu.spb.orderservice.model.entity;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonFormat.Shape;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Column;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
 import lombok.Builder;
-import org.nicetu.spb.orderservice.constant.AppConstant;
-import org.springframework.format.annotation.DateTimeFormat;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-
-import java.io.Serial;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Set;
 
-@Entity
-@Table(name = "orders")
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode(exclude = {"cart", "orderItems"})
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Table("orders")
 public class Order {
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_id", unique = true, nullable = false, updatable = false)
+    @Column("order_id")
     private Integer orderId;
 
-    @JsonSerialize(using = LocalDateTimeSerializer.class)
-    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
-    @JsonFormat(pattern = AppConstant.LOCAL_DATE_TIME_FORMAT, shape = Shape.STRING)
-    @DateTimeFormat(pattern = AppConstant.LOCAL_DATE_TIME_FORMAT)
-    @Column(name = "order_date")
+    @Column("order_date")
     private LocalDateTime orderDate;
 
-    @Column(name = "order_desc")
+    @Column("order_desc")
     private String orderDesc;
 
-    @Column(name = "order_fee", columnDefinition = "decimal")
+    @Column("order_fee")
     private Double orderFee;
 
-    @Column(name = "status")
+    @Column("status")
     private String status;
 
-    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private Set<OrderItem> orderItems;
+    @Column("cart_id")
+    private Integer cartId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "cart_id")
+    @Transient
+    @Builder.Default
+    private Set<OrderItem> orderItems = new HashSet<>();
+
+    @Transient
     private Cart cart;
 }

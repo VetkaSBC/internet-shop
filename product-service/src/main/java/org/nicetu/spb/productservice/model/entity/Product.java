@@ -1,73 +1,65 @@
 package org.nicetu.spb.productservice.model.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Column;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-import java.io.Serial;
-import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-
-@NoArgsConstructor
-@AllArgsConstructor
 @Data
 @Builder
-@Entity
-@Table(name = "products")
-public class Product implements Serializable {
-    @Serial
-    private static final long serialVersionUID = 1L;
+@NoArgsConstructor
+@AllArgsConstructor
+@Table("products")
+public class Product {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "product_id", unique = true, nullable = false)
+    @Column("product_id")
     private Long productId;
 
-    @Column(name = "title")
+    @Column("title")
     private String title;
 
-    @Column(name = "description")
+    @Column("description")
     private String description;
 
-    @OneToMany(mappedBy = "product",
-            fetch = FetchType.LAZY,
-            cascade = CascadeType.ALL)
-    private List<ProductPhoto> productPhotos = new ArrayList<>();
-
-    @Column(name = "quantity")
+    @Column("quantity")
     private Integer quantity;
 
-    @Column(name = "quantity_status")
+    @Column("quantity_status")
     private String quantityStatus;
 
-    @Column(name = "price_unit")
+    @Column("price_unit")
     private Double priceUnit;
 
-    @Column(name = "discount")
+    @Column("discount")
     private Long discount;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "category_id")
-    private Category category;
+    @Version
+    @Column("version")
+    private Integer version;
 
-    @PrePersist
-    @PreUpdate
+    @Transient
+    @Builder.Default
+    private List<ProductPhoto> productPhotos = new ArrayList<>();
+
+    @Transient
+    @Builder.Default
+    private Set<Category> categories = new HashSet<>();
+
+    @Transient
+    @Builder.Default
+    private Set<Long> categoryIds = new HashSet<>();
+
     public void calculateQuantityStatus() {
         if (this.quantity == null) {
             this.quantityStatus = QuantityStatus.NOT_IN_STOCK.toString();

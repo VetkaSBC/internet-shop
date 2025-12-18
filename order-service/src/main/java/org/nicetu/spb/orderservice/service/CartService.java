@@ -4,10 +4,7 @@ import org.nicetu.spb.orderservice.model.dto.order.CartDto;
 import org.springframework.data.domain.Page;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-
 public interface CartService {
-    Mono<List<CartDto>> findAll();
 
     Mono<Page<CartDto>> findAll(int page, int size, String sortBy, String sortOrder);
 

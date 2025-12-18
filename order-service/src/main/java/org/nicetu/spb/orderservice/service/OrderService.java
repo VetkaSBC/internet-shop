@@ -4,10 +4,7 @@ import org.nicetu.spb.orderservice.model.dto.order.OrderDto;
 import org.springframework.data.domain.Page;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-
 public interface OrderService {
-    Mono<List<OrderDto>> findAll();
 
     Mono<Page<OrderDto>> findAll(int page, int size, String sortBy, String sortOrder);
 
@@ -21,5 +18,5 @@ public interface OrderService {
 
     Mono<Void> deleteById(final Integer orderId);
 
-    Boolean existsByOrderId(Integer orderId);
+    Mono<Boolean> existsByOrderId(Integer orderId);
 }

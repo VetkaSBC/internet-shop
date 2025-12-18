@@ -24,10 +24,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import reactor.core.publisher.Mono;
 
-
-import java.util.Collections;
-import java.util.List;
-
 @Slf4j
 @RequiredArgsConstructor
 @RestController
@@ -36,17 +32,6 @@ import java.util.List;
 public class CartController {
 
     private final CartService cartService;
-
-
-    @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
-    public Mono<ResponseEntity<List<CartDto>>> findAll() {
-        log.info("*** CartDto List, controller; fetch all categories *");
-        return cartService.findAll()
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.ok(Collections.emptyList()));
-    }
-
 
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
@@ -62,11 +47,10 @@ public class CartController {
 
     @GetMapping("/{cartId}")
     @PreAuthorize("hasAuthority('USER') or hasAuthority('ADMIN')")
-    public ResponseEntity<Mono<CartDto>> findById(@PathVariable("cartId")
-                                                  @NotBlank(message = "Input must not be blank")
-                                                  @Valid final String cartId) {
-        log.info("*** CartDto, resource; fetch cart by id *");
-        return ResponseEntity.ok(this.cartService.findById(Integer.parseInt(cartId)));
+    public Mono<ResponseEntity<CartDto>> findById(@PathVariable("cartId") Integer cartId) {
+        return cartService.findById(cartId)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
 
